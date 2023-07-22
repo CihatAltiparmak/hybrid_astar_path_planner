@@ -20,21 +20,24 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(grid_map_ros REQUIRED)
 find_package(grid_map_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
 include_directories(include)
-add_executable(hybrid_astar_planner 
+add_executable(test_update_neigbour
+  test/test_update_neigbour.cpp
   src/hybrid_astar_planner.cpp)
 
-ament_target_dependencies(hybrid_astar_planner 
+ament_target_dependencies(test_update_neigbour 
   rclcpp 
   grid_map_ros
-  grid_map_msgs)
+  grid_map_msgs
+  visualization_msgs)
 
 install(TARGETS
-  hybrid_astar_planner
+  test_update_neigbour
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

@@ -11,6 +11,7 @@
 
   <build_depend>grid_map_ros</build_depend>
   <build_depend>grid_map_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
