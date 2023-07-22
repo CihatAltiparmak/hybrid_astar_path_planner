@@ -11,11 +11,27 @@ grid_map::GridMap create_map() {
     for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) {
         grid_map::Position pos;
         map.getPosition(*it, pos);
-
         map.at("x", *it) = pos.x();
         map.at("y", *it) = pos.y();
         map.at("z", *it) = 0.0;
         map.at("obstacle", *it) = 0.0;
+    }
+
+    grid_map::Index start(7, 7);
+    grid_map::Index end(8, 8);
+
+    grid_map::Position pos_start;
+    map.getPosition(start, pos_start);
+
+    grid_map::Position pos_end;
+    map.getPosition(end, pos_end);
+
+    for (grid_map::LineIterator it(map, start, end); !it.isPastEnd(); ++it) {
+        grid_map::Position pos;
+        map.getPosition(*it, pos);
+
+        map.at("z", *it) = 10.0;
+        map.at("obstacle", *it) = 10.0;
     }
 
     return map;
@@ -37,6 +53,8 @@ int main(int argc, char** argv) {
 
     visualization_msgs::msg::Marker viz_msg;
     planning::Node start_node = planning::Node();
+    start_node.x = -0.049;
+    start_node.y = -0.049;
     start_node.yaw = 0.785398;
     int cell_number =
         hybrid_astar.map.getSize()(0) * hybrid_astar.map.getSize()(1);
@@ -44,19 +62,10 @@ int main(int argc, char** argv) {
     std::priority_queue<std::shared_ptr<planning::Node> > pq;
     std::vector<bool> visited(cell_number, false);
 
-    // hybrid_astar.updateNeigbour(start_node, all_nodes, pq, visited);
-
     all_nodes.push_back(std::make_shared<planning::Node>(start_node));
-    // for (int i = 0; i < (int)all_nodes.size(); i++) {
-    //     if ((int)all_nodes.size() > 5000) {
-    //         break;
-    //     }
-    //     auto node = all_nodes[i];
-    //     hybrid_astar.updateNeigbour(*node, all_nodes, pq, visited);
-    // }
 
     int level_ii = 0;
-    for (int level = 0; level < 3; level++) {
+    for (int level = 0; level < 6; level++) {
         int node_size_limit = all_nodes.size();
         for (; level_ii < node_size_limit; level_ii++) {
             auto node = all_nodes[level_ii];
@@ -71,6 +80,11 @@ int main(int argc, char** argv) {
         node_point.y = node->y;
         node_point.z = 0.0;
         viz_msg.points.push_back(node_point);
+
+        grid_map::Index n_indx = hybrid_astar.getIndexOfNode(*node);
+
+        hybrid_astar.map.at("z", n_indx) = -2.0;
+        hybrid_astar.map.at("obstacle", n_indx) = -2.0;
         std::cout << node->x << " | " << node->y << " | " << node->yaw
                   << std::endl;
     }
@@ -81,9 +95,9 @@ int main(int argc, char** argv) {
     viz_msg.action = visualization_msgs::msg::Marker::ADD;
     viz_msg.id = 1;
     viz_msg.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-    viz_msg.scale.x = 0.01;
-    viz_msg.scale.y = 0.01;
-    viz_msg.scale.z = 0.01;
+    viz_msg.scale.x = 0.005;
+    viz_msg.scale.y = 0.005;
+    viz_msg.scale.z = 0.005;
     viz_msg.color.b = 1.0;
     viz_msg.color.a = 1.0;
 

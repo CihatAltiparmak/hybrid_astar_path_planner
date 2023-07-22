@@ -51,8 +51,6 @@ typedef struct Node {
 
 inline bool operator<(const std::shared_ptr<Node> &n1,
                       const std::shared_ptr<Node> &n2) {
-    std::cout << "bumm: " << n1->x << std::endl;
-    std::cout << "bumm: " << n2->x << std::endl;
     return n1->f_cost < n2->f_cost;
 }
 

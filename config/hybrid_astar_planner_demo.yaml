@@ -1,0 +1,14 @@
+grid_map_visualization:
+  ros__parameters:
+    grid_map_topic: /astar_grid_map
+    grid_map_visualizations: [elevation_points, occupancy_grid]
+    elevation_points:
+      type: point_cloud
+      params:
+        layer: z
+    occupancy_grid:
+      type: occupancy_grid
+      params:
+        layer: obstacle
+        data_min: -10.0
+        data_max: 10.0

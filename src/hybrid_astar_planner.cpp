@@ -3,7 +3,7 @@
 namespace planning {
 
 HybridAstarPlanner::HybridAstarPlanner() {
-    wheelbase = 0.05;  // 2.0;
+    wheelbase = 0.05; // 2.0;
     dt = 0.1;
     velocityInputs = {0.5};
     // steeringInputs = {-0.34, 0.0, 0.34};
@@ -32,10 +32,10 @@ void HybridAstarPlanner::updateNeigbour(
             Node new_node = node.getNextNode(steering, velocity, wheelbase, dt);
 
             // TODO @CihatAltiparmak : will be addressed this issue again
-            // if (isInsideOfSameCell(node, new_node)) {
-            //     new_node = new_node.getNextNode(steering, velocity / 2.0,
-            //                                     wheelbase, dt);
-            // }
+            if (isInsideOfSameCell(node, new_node)) {
+                new_node = new_node.getNextNode(steering, velocity / 2.0,
+                                                wheelbase, dt);
+            }
 
             if (isInsideOfMap(new_node) && isPathValid(node, new_node) &&
                 !isClosed(new_node, closed_list)) {
@@ -59,7 +59,7 @@ bool HybridAstarPlanner::isPathValid(const Node& n_start,
         grid_map::Position pos;
         map.getPosition(*cell_iterator, pos);
 
-        if (map.at("obstacle", *cell_iterator) == 1.0) {
+        if (map.at("obstacle", *cell_iterator) > 0.0) {
             std::cout << "path is not valid" << std::endl;
             return false;
         }
@@ -80,7 +80,7 @@ bool HybridAstarPlanner::isInsideOfMap(const Node& node) {
 bool HybridAstarPlanner::isClosed(const Node& node,
                                   std::vector<bool>& closed_list) {
     grid_map::Index node_index = getIndexOfNode(node);
-    std::cout << node_index << std::endl;
+    // std::cout << node_index << std::endl;
     int index = node_index.y() + node_index.x() * map.getSize().x();
 
     if (closed_list[index]) {
@@ -93,6 +93,15 @@ bool HybridAstarPlanner::isClosed(const Node& node,
 bool HybridAstarPlanner::isInsideOfSameCell(const Node& n1, const Node& n2) {
     grid_map::Index n1_index = getIndexOfNode(n1);
     grid_map::Index n2_index = getIndexOfNode(n2);
+
+    std::cout << "[isInsideOfSameCell] : START" << std::endl;
+    std::cout << n1_index.x() << " | " << n1_index.y() << std::endl;
+    std::cout << n2_index.x() << " | " << n2_index.y() << std::endl;
+    if ((n1_index.x() == n2_index.x()) && (n1_index.y() == n2_index.y())) {
+        std::cout << "IN SAME CELL" << std::endl;
+    }
+    std::cout << "[isInsideOfSameCell] : END" << std::endl;
+
     return (n1_index.x() == n2_index.x()) && (n1_index.y() == n2_index.y());
 }
 
