@@ -1,6 +1,8 @@
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
+#include "test_utils/utils.hpp"
+
 grid_map::GridMap create_map() {
     grid_map::GridMap map =
         grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
@@ -8,31 +10,8 @@ grid_map::GridMap create_map() {
     map.setGeometry(grid_map::Length(1.0, 1.0), 0.05,
                     grid_map::Position(0.0, 0.0));
 
-    for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) {
-        grid_map::Position pos;
-        map.getPosition(*it, pos);
-        map.at("x", *it) = pos.x();
-        map.at("y", *it) = pos.y();
-        map.at("z", *it) = 0.0;
-        map.at("obstacle", *it) = 0.0;
-    }
-
-    grid_map::Index start(7, 7);
-    grid_map::Index end(8, 8);
-
-    grid_map::Position pos_start;
-    map.getPosition(start, pos_start);
-
-    grid_map::Position pos_end;
-    map.getPosition(end, pos_end);
-
-    for (grid_map::LineIterator it(map, start, end); !it.isPastEnd(); ++it) {
-        grid_map::Position pos;
-        map.getPosition(*it, pos);
-
-        map.at("z", *it) = 10.0;
-        map.at("obstacle", *it) = 10.0;
-    }
+    clearGridMap(map);
+    addObstaclesToGridMap(map);
 
     return map;
 }
@@ -56,24 +35,17 @@ int main(int argc, char** argv) {
     start_node.x = -0.049;
     start_node.y = -0.049;
     start_node.yaw = 0.785398;
+
+    planning::Node end_node = planning::Node();
+    end_node.x = 0.4;
+    end_node.y = 0.4;
+    end_node.yaw = 0.785398;
     int cell_number =
         hybrid_astar.map.getSize()(0) * hybrid_astar.map.getSize()(1);
     std::vector<std::shared_ptr<planning::Node> > all_nodes;
-    std::priority_queue<std::shared_ptr<planning::Node> > pq;
-    std::vector<bool> visited(cell_number, false);
 
-    all_nodes.push_back(std::make_shared<planning::Node>(start_node));
-
-    int level_ii = 0;
-    for (int level = 0; level < 2; level++) {
-        int node_size_limit = all_nodes.size();
-        for (; level_ii < node_size_limit; level_ii++) {
-            auto node = all_nodes[level_ii];
-            hybrid_astar.updateNeigbour(std::make_shared<planning::Node>(node),
-                                        std::make_shared<planning::Node>(node),
-                                        all_nodes, pq, visited);
-        }
-    }
+    all_nodes = hybrid_astar.plan(std::make_shared<planning::Node>(start_node),
+                                  std::make_shared<planning::Node>(end_node));
 
     std::cout << "neigbours start" << std::endl;
     for (auto node : all_nodes) {

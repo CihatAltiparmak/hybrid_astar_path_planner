@@ -26,20 +26,52 @@ find_package(visualization_msgs REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 include_directories(include)
-add_executable(test_update_neigbour
-  test/test_update_neigbour.cpp
+add_executable(test_plan
+  test/test_plan.cpp
   src/hybrid_astar_planner.cpp)
 
-ament_target_dependencies(test_update_neigbour 
+ament_target_dependencies(test_plan 
   rclcpp 
   grid_map_ros
   grid_map_msgs
   visualization_msgs)
 
 install(TARGETS
-  test_update_neigbour
+  test_plan
   DESTINATION lib/${PROJECT_NAME})
 
+############################
+
+# add_executable(test_update_neigbour
+#   test/test_update_neigbour.cpp
+#   src/hybrid_astar_planner.cpp)
+# 
+# ament_target_dependencies(test_update_neigbour 
+#   rclcpp 
+#   grid_map_ros
+#   grid_map_msgs
+#   visualization_msgs)
+# 
+# install(TARGETS
+#   test_update_neigbour
+#   DESTINATION lib/${PROJECT_NAME})
+# 
+# ############################
+# 
+# add_executable(test_is_path_valid
+#   test/test_is_path_valid.cpp
+#   src/hybrid_astar_planner.cpp)
+# 
+# ament_target_dependencies(test_is_path_valid 
+#   rclcpp 
+#   grid_map_ros
+#   grid_map_msgs
+#   visualization_msgs)
+# 
+# install(TARGETS
+#   test_is_path_valid
+#   DESTINATION lib/${PROJECT_NAME})
+# 
 # Mark other files for installation
 install(
   DIRECTORY config launch rviz

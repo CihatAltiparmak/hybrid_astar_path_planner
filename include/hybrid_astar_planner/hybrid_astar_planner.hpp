@@ -16,7 +16,7 @@ typedef struct Node {
     double yaw;
     double h_cost;
     double f_cost;
-    Node *parent;
+    std::shared_ptr<Node> parent;
 
     Node() : Node(0.0, 0.0) {}
     Node(const double &x, const double &y) : x(x), y(y), yaw(0.0) {}
@@ -24,9 +24,7 @@ typedef struct Node {
     Node getNextNode(const double &steering, const double &velocity,
                      const double &wheelbase, const double &dt) const {
         Node next_node;
-        // std::cout << "getnextnode: cos" << velocity * std::cos(yaw) * dt <<
-        // std::endl; std::cout << "getnextnode: sin" << velocity *
-        // std::sin(yaw) * dt << std::endl;
+
         double delta_yaw =
             normalize_yaw(velocity * dt * std::tan(steering) / wheelbase);
         next_node.x = x + velocity * std::cos(yaw + delta_yaw) * dt;
@@ -51,16 +49,20 @@ typedef struct Node {
 
 inline bool operator<(const std::shared_ptr<Node> &n1,
                       const std::shared_ptr<Node> &n2) {
-    return n1->f_cost < n2->f_cost;
+    return n1->f_cost > n2->f_cost;
 }
 
 class HybridAstarPlanner {
    public:
     HybridAstarPlanner();
-    std::vector<std::shared_ptr<Node> > plan(Node &, Node &);
-    void updateNeigbour(const Node &, std::vector<std::shared_ptr<Node> > &,
+    std::vector<std::shared_ptr<Node> > plan(std::shared_ptr<Node>,
+                                             std::shared_ptr<Node>);
+    void updateNeigbour(std::shared_ptr<Node>, std::shared_ptr<Node>,
+                        std::vector<std::shared_ptr<Node> > &,
                         std::priority_queue<std::shared_ptr<Node> > &,
                         std::vector<bool> &);
+    void addToClosedList(const Node &, std::vector<bool> &);
+    double heruisticCost(const Node &, const Node &);
     // virtual bool isCollision() = 0;
     bool isPathValid(const Node &, const Node &);
     bool isInsideOfMap(const Node &);
