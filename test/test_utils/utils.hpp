@@ -15,8 +15,26 @@ void basic3(std::vector<grid_map::Index>& obstacles) {
 }
 
 void basic4(std::vector<grid_map::Index>& obstacles) {
-    obstacles = {{7, 7}, {8, 8}, {7, 4}, {8, 5},
-                 {7, 1}, {8, 2}, {2, 6}, {3, 7}};
+    obstacles = {{7, 7}, {8, 8}, {7, 4}, {8, 5}, {7, 1}, {8, 2},
+                 {2, 6}, {3, 7}, {7, 6}, {8, 7}, {7, 8}, {8, 9}};
+}
+
+void basic5(std::vector<grid_map::Index>& obstacles) {
+    obstacles = {{7, 4}, {8, 5}, {7, 1}, {8, 2}, {2, 6}, {3, 7}, {7, 6}, {8, 7},
+                 {7, 8}, {8, 9}, {7, 5}, {8, 6}, {7, 7}, {8, 8}, {9, 9}};
+}
+
+void basic6(std::vector<grid_map::Index>& obstacles) {
+    obstacles = {{7, 7}, {8, 8}, {7, 4}, {8, 5}, {7, 1}, {8, 2}, {2, 6},
+                 {3, 7}, {7, 6}, {8, 7}, {7, 8}, {8, 9}, {7, 5}, {8, 6},
+                 {8, 9}, {7, 9}, {6, 9}, {5, 9}, {4, 9}, {3, 9}, {2, 9}};
+}
+
+void basic7(std::vector<grid_map::Index>& obstacles) {
+    obstacles = {{7, 7}, {8, 8}, {7, 4}, {8, 5}, {7, 1}, {8, 2}, {2, 6},
+                 {3, 7}, {7, 6}, {8, 7}, {7, 8}, {8, 9}, {7, 5}, {8, 6},
+                 {8, 9}, {7, 9}, {6, 9}, {5, 9}, {4, 9}, {3, 9}, {2, 9},
+                 {7, 0}, {8, 1}, {7, 2}, {8, 3}, {7, 3}, {8, 4}};
 }
 
 void clearGridMap(grid_map::GridMap& map) {
@@ -30,7 +48,7 @@ void clearGridMap(grid_map::GridMap& map) {
 
 void addObstaclesToGridMap(grid_map::GridMap& map) {
     std::vector<grid_map::Index> obstacles;
-    basic4(obstacles);
+    basic5(obstacles);
 
     for (auto obIndx : obstacles) {
         map.at("obstacle", obIndx) = 10.0;

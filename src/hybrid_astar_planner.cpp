@@ -3,9 +3,9 @@
 namespace planning {
 
 HybridAstarPlanner::HybridAstarPlanner() {
-    wheelbase = 0.05;  // 2.0;
+    wheelbase = 1.0;  // 0.05;  // 2.0;
     dt = 0.1;
-    velocityInputs = {0.5};
+    velocityInputs = {10};  //{0.5};
     // steeringInputs = {-0.34, 0.0, 0.34};
     steeringInputs = {-0.34, -0.17, 0.0, 0.17, 0.34};
     // steeringInputs = {-0.78, 0.0, 0.78};
@@ -22,10 +22,6 @@ std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
     while (!open_list.empty()) {
         std::shared_ptr<Node> node = open_list.top();
         open_list.pop();
-
-        if (isClosed(*node, closed_list)) {
-            continue;
-        }
 
         if (isInsideOfSameCell(*node, *target_node)) {
             std::cout << "PLAN CREATED" << std::endl;
@@ -45,7 +41,7 @@ std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
     }
 
     std::cout << "PLAN FAIL" << std::endl;
-    return {};
+    return nodes;
 }
 
 void HybridAstarPlanner::updateNeigbour(
@@ -94,19 +90,62 @@ void HybridAstarPlanner::addToClosedList(const Node& node,
     closed_list[index] = true;
 }
 
-bool HybridAstarPlanner::isPathValid(const Node& n_start,
-                                     const Node& n_target) {
-    const grid_map::Index& n_start_index = getIndexOfNode(n_start);
-    const grid_map::Index& n_target_index = getIndexOfNode(n_target);
+// https://gamedev.stackexchange.com/a/182143
+// http://www.cse.yorku.ca/~amana/research/grid.pdf
+bool HybridAstarPlanner::isPathValid(const Node& start_node,
+                                     const Node& end_node) {
+    double resolution = map.getResolution();
 
-    for (grid_map::LineIterator cell_iterator(map, n_start_index,
-                                              n_target_index);
-         !cell_iterator.isPastEnd(); ++cell_iterator) {
-        grid_map::Position pos;
-        map.getPosition(*cell_iterator, pos);
+    double x0 = start_node.x / resolution;
+    double y0 = start_node.y / resolution;
 
-        if (map.at("obstacle", *cell_iterator) > 0.0) {
+    double x1 = end_node.x / resolution;
+    double y1 = end_node.y / resolution;
+
+    double dx = x1 - x0;
+    double dy = y1 - y0;
+
+    double angle = std::atan2(dy, dx);
+    double tDeltaX = std::abs(1.0 / std::cos(angle));
+    double tDeltaY = std::abs(1.0 / std::sin(angle));
+
+    double tMaxX, tMaxY;
+    double stepX, stepY;
+
+    if (dx < 0) {
+        tMaxX = std::abs((x0 - std::ceil(x0 - 1)) / std::cos(angle));
+        stepX = -1;
+    } else {
+        tMaxX = std::abs((std::ceil(x0) - x0) / std::cos(angle));
+        stepX = 1;
+    }
+
+    if (dy < 0) {
+        tMaxY = std::abs((y0 - std::ceil(y0 - 1)) / std::sin(angle));
+        stepY = -1;
+    } else {
+        tMaxY = std::abs((std::ceil(y0) - y0) / std::sin(angle));
+        stepY = 1;
+    }
+
+    double x = x0;
+    double y = y0;
+
+    double dist = std::abs(std::ceil(x1) - std::ceil(x0)) +
+                  std::abs(std::ceil(y1) - std::ceil(y0));
+
+    for (int i = 0; i <= dist; i++) {
+        grid_map::Position cell_pos(x * resolution, y * resolution);
+        if (map.atPosition("obstacle", cell_pos) > 0.0) {
             return false;
+        }
+
+        if (std::abs(tMaxX) < std::abs(tMaxY)) {
+            tMaxX = tMaxX + tDeltaX;
+            x = x + stepX;
+        } else {
+            tMaxY = tMaxY + tDeltaY;
+            y = y + stepY;
         }
     }
 
@@ -115,9 +154,6 @@ bool HybridAstarPlanner::isPathValid(const Node& n_start,
 
 bool HybridAstarPlanner::isInsideOfMap(const Node& node) {
     grid_map::Position node_position = getPositionOfNode(node);
-    if (!map.isInside(node_position)) {
-        std::cout << "not inside map" << std::endl;
-    }
     return map.isInside(node_position);
 }
 

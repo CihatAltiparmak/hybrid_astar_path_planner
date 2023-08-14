@@ -57,21 +57,21 @@ install(TARGETS
 #   DESTINATION lib/${PROJECT_NAME})
 # 
 # ############################
-# 
-# add_executable(test_is_path_valid
-#   test/test_is_path_valid.cpp
-#   src/hybrid_astar_planner.cpp)
-# 
-# ament_target_dependencies(test_is_path_valid 
-#   rclcpp 
-#   grid_map_ros
-#   grid_map_msgs
-#   visualization_msgs)
-# 
-# install(TARGETS
-#   test_is_path_valid
-#   DESTINATION lib/${PROJECT_NAME})
-# 
+
+add_executable(test_is_path_valid
+  test/test_is_path_valid.cpp
+  src/hybrid_astar_planner.cpp)
+
+ament_target_dependencies(test_is_path_valid 
+  rclcpp 
+  grid_map_ros
+  grid_map_msgs
+  visualization_msgs)
+
+install(TARGETS
+  test_is_path_valid
+  DESTINATION lib/${PROJECT_NAME})
+
 # Mark other files for installation
 install(
   DIRECTORY config launch rviz
