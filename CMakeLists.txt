@@ -28,7 +28,8 @@ find_package(visualization_msgs REQUIRED)
 include_directories(include)
 add_executable(test_plan
   test/test_plan.cpp
-  src/hybrid_astar_planner.cpp)
+  src/hybrid_astar_planner.cpp
+  src/path_smoother.cpp)
 
 ament_target_dependencies(test_plan 
   rclcpp 

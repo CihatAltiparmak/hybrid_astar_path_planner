@@ -1,30 +1,82 @@
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
+#include <hybrid_astar_planner/path_smoother.hpp>
 
 namespace planning {
 
 HybridAstarPlanner::HybridAstarPlanner() {
-    wheelbase = 1.0;  // 0.05;  // 2.0;
-    dt = 0.1;
-    velocityInputs = {10};  //{0.5};
+    wheelbase_ = 1.0;  // 0.05;  // 2.0;
+    dt_ = 0.1;
+    velocityInputs_ = {10};  //{0.5};
     // steeringInputs = {-0.34, 0.0, 0.34};
-    steeringInputs = {-0.34, -0.17, 0.0, 0.17, 0.34};
-    // steeringInputs = {-0.78, 0.0, 0.78};
+    steeringInputs_ = {-0.34, -0.17, 0.0, 0.17, 0.34};
+    // steeringInputs_ = {-0.78, 0.0, 0.78};
+
+    timeLimit_ = 1000;
+    steeringCost_ = 0.1;
+    headingChangeCost_ = 0.1;
+    obstacleCost_ = 0.1;
+}
+
+HybridAstarPlanner::HybridAstarPlanner(rclcpp::Node::SharedPtr& node) {
+    node->declare_parameter("wheelbase", 1.0);
+    node->get_parameter("wheelbase", wheelbase_);
+
+    node->declare_parameter("dt", 0.1);
+    node->get_parameter("dt", dt_);
+
+    node->declare_parameter("velocity_inputs", std::vector<double>({10.0}));
+    node->get_parameter("velocity_inputs", velocityInputs_);
+
+    node->declare_parameter(
+        "steering_inputs",
+        std::vector<double>({-0.34, -0.17, 0.0, 0.17, 0.34}));
+    node->get_parameter("steering_inputs", steeringInputs_);
+
+    node->declare_parameter("time_limit", 1000);
+    node->get_parameter("time_limit", timeLimit_);
+
+    node->declare_parameter("steering_cost", 0.1);
+    node->get_parameter("steering_cost", steeringCost_);
+
+    node->declare_parameter("heading_change_cost", 0.1);
+    node->get_parameter("heading_change_cost", headingChangeCost_);
+
+    node->declare_parameter("obstacle_cost", 0.1);
+    node->get_parameter("obstacle_cost", obstacleCost_);
 }
 
 std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
     std::shared_ptr<Node> start_node, std::shared_ptr<Node> target_node) {
     std::vector<std::shared_ptr<Node> > nodes;
     std::priority_queue<std::shared_ptr<Node> > open_list;
-    std::vector<bool> closed_list(map.getSize()(0) * map.getSize()(1), false);
+    std::vector<bool> closed_list(map_.getSize()(0) * map_.getSize()(1), false);
 
     open_list.push(start_node);
 
+    std::cout << "CRAZY DEBUG START " << std::endl;
+    std::cout << start_node->x << " | " << start_node->y << std::endl;
+    std::cout << target_node->x << " | " << target_node->y << std::endl;
+    std::cout << "END END END" << std::endl;
+
+    auto algorithm_start_time = std::chrono::high_resolution_clock::now();
     while (!open_list.empty()) {
+        auto algorithm_current_time = std::chrono::high_resolution_clock::now();
+        auto algorithm_duration_time =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                algorithm_current_time - algorithm_start_time)
+                .count();
+        if (algorithm_duration_time > timeLimit_) {
+            std::cout << "PLAN TIMEOUT EXCEEDED : " << algorithm_duration_time
+                      << std::endl;
+            return {};
+        }
+
         std::shared_ptr<Node> node = open_list.top();
         open_list.pop();
 
         if (isInsideOfSameCell(*node, *target_node)) {
-            std::cout << "PLAN CREATED" << std::endl;
+            std::cout << "PLAN CREATED : " << algorithm_duration_time
+                      << std::endl;
 
             std::shared_ptr<Node> path_current_node = node;
             std::vector<std::shared_ptr<Node> > path;
@@ -49,21 +101,23 @@ void HybridAstarPlanner::updateNeigbour(
     std::vector<std::shared_ptr<Node> >& nodes,
     std::priority_queue<std::shared_ptr<Node> >& open_list,
     std::vector<bool>& closed_list) {
-    for (const double& steering : steeringInputs) {
-        for (const double& velocity : velocityInputs) {
+    for (const double& steering : steeringInputs_) {
+        for (const double& velocity : velocityInputs_) {
             Node new_node =
-                node->getNextNode(steering, velocity, wheelbase, dt);
+                node->getNextNode(steering, velocity, wheelbase_, dt_);
 
             // TODO @CihatAltiparmak : will be addressed this issue again
             if (isInsideOfSameCell(*node, new_node)) {
                 new_node = new_node.getNextNode(steering, velocity / 2.0,
-                                                wheelbase, dt);
+                                                wheelbase_, dt_);
             }
 
             if (isInsideOfMap(new_node) && isPathValid(*node, new_node) &&
                 !isClosed(new_node, closed_list)) {
-                new_node.f_cost = heruisticCost(new_node, *target_node) +
-                                  0.1 * std::abs(steering);
+                new_node.f_cost =
+                    heruisticCost(new_node, *target_node) +
+                    steeringCost_ * std::abs(steering) +
+                    headingChangeCost_ * std::abs(new_node.yaw - node->yaw);
                 new_node.parent = node;
                 std::shared_ptr<Node> new_node_ptr =
                     std::make_shared<Node>(new_node);
@@ -85,7 +139,7 @@ double HybridAstarPlanner::heruisticCost(const Node& node,
 void HybridAstarPlanner::addToClosedList(const Node& node,
                                          std::vector<bool>& closed_list) {
     grid_map::Index node_index = getIndexOfNode(node);
-    int index = node_index.y() + node_index.x() * map.getSize().x();
+    int index = node_index.y() + node_index.x() * map_.getSize().x();
 
     closed_list[index] = true;
 }
@@ -94,7 +148,7 @@ void HybridAstarPlanner::addToClosedList(const Node& node,
 // http://www.cse.yorku.ca/~amana/research/grid.pdf
 bool HybridAstarPlanner::isPathValid(const Node& start_node,
                                      const Node& end_node) {
-    double resolution = map.getResolution();
+    double resolution = map_.getResolution();
 
     double x0 = start_node.x / resolution;
     double y0 = start_node.y / resolution;
@@ -136,7 +190,7 @@ bool HybridAstarPlanner::isPathValid(const Node& start_node,
 
     for (int i = 0; i <= dist; i++) {
         grid_map::Position cell_pos(x * resolution, y * resolution);
-        if (map.atPosition("obstacle", cell_pos) > 0.0) {
+        if (map_.atPosition("obstacle", cell_pos) > 0.0) {
             return false;
         }
 
@@ -154,14 +208,14 @@ bool HybridAstarPlanner::isPathValid(const Node& start_node,
 
 bool HybridAstarPlanner::isInsideOfMap(const Node& node) {
     grid_map::Position node_position = getPositionOfNode(node);
-    return map.isInside(node_position);
+    return map_.isInside(node_position);
 }
 
 // TODO @CihatAltiparmak : not implemented correctly. fix it
 bool HybridAstarPlanner::isClosed(const Node& node,
                                   std::vector<bool>& closed_list) {
     grid_map::Index node_index = getIndexOfNode(node);
-    int index = node_index.y() + node_index.x() * map.getSize().x();
+    int index = node_index.y() + node_index.x() * map_.getSize().x();
 
     return closed_list[index];
 }
@@ -181,7 +235,7 @@ grid_map::Position HybridAstarPlanner::getPositionOfNode(const Node& node) {
 grid_map::Index HybridAstarPlanner::getIndexOfNode(const Node& node) {
     grid_map::Position node_position = getPositionOfNode(node);
     grid_map::Index node_index;
-    map.getIndex(node_position, node_index);
+    map_.getIndex(node_position, node_index);
     return node_index;
 }
 

@@ -1,6 +1,7 @@
 #ifndef __HYBRID_ASTAR_PLANNER_HPP__
 #define __HYBRID_ASTAR_PLANNER_HPP__
 
+#include <chrono>
 #include <cmath>
 #include <grid_map_msgs/msg/grid_map.hpp>
 #include <grid_map_ros/grid_map_ros.hpp>
@@ -18,8 +19,10 @@ typedef struct Node {
     double f_cost;
     std::shared_ptr<Node> parent;
 
-    Node() : Node(0.0, 0.0) {}
-    Node(const double &x, const double &y) : x(x), y(y), yaw(0.0) {}
+    Node() : Node(0.0, 0.0, 0.0) {}
+    Node(const double &x, const double &y) : Node(x, y, 0.0) {}
+    Node(const double &x, const double &y, const double &yaw)
+        : x(x), y(y), yaw(yaw) {}
 
     Node getNextNode(const double &steering, const double &velocity,
                      const double &wheelbase, const double &dt) const {
@@ -55,6 +58,7 @@ inline bool operator<(const std::shared_ptr<Node> &n1,
 class HybridAstarPlanner {
    public:
     HybridAstarPlanner();
+    HybridAstarPlanner(rclcpp::Node::SharedPtr &);
     std::vector<std::shared_ptr<Node> > plan(std::shared_ptr<Node>,
                                              std::shared_ptr<Node>);
     void updateNeigbour(std::shared_ptr<Node>, std::shared_ptr<Node>,
@@ -71,13 +75,18 @@ class HybridAstarPlanner {
     grid_map::Index getIndexOfNode(const Node &);
     grid_map::Position getPositionOfNode(const Node &);
     // void pubMap();
-    grid_map::GridMap map;
+    grid_map::GridMap map_;
 
    private:
-    std::vector<double> steeringInputs;
-    std::vector<double> velocityInputs;
-    double wheelbase;
-    double dt;
+    std::vector<double> steeringInputs_;
+    std::vector<double> velocityInputs_;
+    double wheelbase_;
+    double dt_;
+    int timeLimit_;
+
+    double steeringCost_;
+    double headingChangeCost_;
+    double obstacleCost_;
 };
 
 }  // end of namespace planning

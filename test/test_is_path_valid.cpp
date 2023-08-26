@@ -90,7 +90,7 @@ void ray_casting(planning::Node start_node, planning::Node end_node,
 void traverse_grid() {
     std::vector<std::pair<double, double>> all_nodes;
     viz_msg.points.clear();
-    clearMap(hybrid_astar.map);
+    clearMap(hybrid_astar.map_);
     ray_casting(start_node, end_node, all_nodes);
 
     std::cout << "neigbours start" << std::endl;
@@ -102,11 +102,11 @@ void traverse_grid() {
         // viz_msg.points.push_back(node_point);
 
         grid_map::Index n_indx;
-        hybrid_astar.map.getIndex(grid_map::Position(node.first, node.second),
-                                  n_indx);
+        hybrid_astar.map_.getIndex(grid_map::Position(node.first, node.second),
+                                   n_indx);
 
-        hybrid_astar.map.at("z", n_indx) = -2.0;
-        hybrid_astar.map.at("obstacle", n_indx) = -2.0;
+        hybrid_astar.map_.at("z", n_indx) = -2.0;
+        hybrid_astar.map_.at("obstacle", n_indx) = -2.0;
     }
 
     all_nodes = {{start_node.x, start_node.y}, {end_node.x, end_node.y}};
@@ -148,7 +148,7 @@ void goal_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    hybrid_astar.map = create_map();
+    hybrid_astar.map_ = create_map();
 
     rclcpp::Node::SharedPtr node =
         std::make_shared<rclcpp::Node>("hybrid_astar_node");
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     rclcpp::Rate rate(30.0);
     while (rclcpp::ok()) {
         std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map);
+            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
 
         map_pub->publish(std::move(msg));
         points_pub->publish(viz_msg);

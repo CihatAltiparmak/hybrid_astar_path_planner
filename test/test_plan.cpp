@@ -1,7 +1,16 @@
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
 #include "test_utils/utils.hpp"
+
+planning::HybridAstarPlanner hybrid_astar;
+
+planning::Node start_node = planning::Node(-0.049 * 20, -0.049 * 20, 0.785398);
+planning::Node end_node = planning::Node(0.4 * 20.0, 0.4 * 20.0, 0.785398);
+
+visualization_msgs::msg::Marker viz_msg;
 
 grid_map::GridMap create_map() {
     grid_map::GridMap map =
@@ -19,33 +28,11 @@ grid_map::GridMap create_map() {
     return map;
 }
 
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    auto hybrid_astar = planning::HybridAstarPlanner();
-    hybrid_astar.map = create_map();
-
-    rclcpp::Node::SharedPtr node =
-        std::make_shared<rclcpp::Node>("hybrid_astar_node");
-
-    auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
-        "/astar_grid_map", rclcpp::QoS(1).transient_local());
-
-    auto points_pub = node->create_publisher<visualization_msgs::msg::Marker>(
-        "/points", rclcpp::QoS(1).transient_local());
-
-    visualization_msgs::msg::Marker viz_msg;
-    planning::Node start_node = planning::Node();
-    start_node.x = -0.049 * 20;
-    start_node.y = -0.049 * 20;
-    start_node.yaw = 0.785398;  //+ 3.14;
-
-    planning::Node end_node = planning::Node();
-    end_node.x = 0.4 * 20.0;
-    end_node.y = 0.4 * 20.0;
-    end_node.yaw = 0.785398;
-    int cell_number =
-        hybrid_astar.map.getSize()(0) * hybrid_astar.map.getSize()(1);
+void do_plan() {
+    std::cout << "YESSS DOING IT" << std::endl;
     std::vector<std::shared_ptr<planning::Node> > all_nodes;
+    viz_msg.points.clear();
+    hybrid_astar.map_ = create_map();
 
     all_nodes = hybrid_astar.plan(std::make_shared<planning::Node>(start_node),
                                   std::make_shared<planning::Node>(end_node));
@@ -63,6 +50,46 @@ int main(int argc, char** argv) {
         // hybrid_astar.map.at("obstacle", n_indx) = -2.0;
     }
     std::cout << "neigbours end: " << viz_msg.points.size() << std::endl;
+}
+
+void initial_pose_callback(
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    std::cout << "initial_pose sub received msg" << std::endl;
+    start_node.x = msg->pose.pose.position.x;
+    start_node.y = msg->pose.pose.position.y;
+
+    do_plan();
+}
+
+void goal_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+    std::cout << "goal_pose sub received msg" << std::endl;
+    end_node.x = msg->pose.position.x;
+    end_node.y = msg->pose.position.y;
+
+    do_plan();
+}
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+
+    rclcpp::Node::SharedPtr node =
+        std::make_shared<rclcpp::Node>("hybrid_astar_node");
+
+    auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
+        "/astar_grid_map", rclcpp::QoS(1).transient_local());
+
+    auto points_pub = node->create_publisher<visualization_msgs::msg::Marker>(
+        "/points", rclcpp::QoS(1).transient_local());
+
+    auto initial_pose_sub = node->create_subscription<
+        geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10,
+                                                       initial_pose_callback);
+
+    auto goal_pose_sub =
+        node->create_subscription<geometry_msgs::msg::PoseStamped>(
+            "/goal_pose", 10, goal_pose_callback);
+
+    hybrid_astar = planning::HybridAstarPlanner(node);
 
     viz_msg.header.frame_id = "map";
     viz_msg.ns = "test_update_neigbour";
@@ -75,10 +102,12 @@ int main(int argc, char** argv) {
     viz_msg.color.b = 1.0;
     viz_msg.color.a = 1.0;
 
+    do_plan();
+
     rclcpp::Rate rate(30.0);
     while (rclcpp::ok()) {
         std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map);
+            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
 
         map_pub->publish(std::move(msg));
         points_pub->publish(viz_msg);
