@@ -4,7 +4,12 @@ namespace planning {
 
 PathSmoother::PathSmoother() {}
 
-void PathSmoother::smoothPath(const nav_msgs::msg::Path::SharedPtr path) {}
+void PathSmoother::smoothPath(const nav_msgs::msg::Path::SharedPtr path) {
+    int iteration_number = 500;
+
+    for (int i = 0; i < iteration_number; i++) {
+    }
+}
 
 void PathSmoother::obstacleTerm() {}
 

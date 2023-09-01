@@ -6,6 +6,7 @@
 #include <grid_map_msgs/msg/grid_map.hpp>
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <memory>
+#include <nav_msgs/msg/path.hpp>
 #include <queue>
 #include <rclcpp/rclcpp.hpp>
 
@@ -75,6 +76,8 @@ class HybridAstarPlanner {
     grid_map::Index getIndexOfNode(const Node &);
     grid_map::Position getPositionOfNode(const Node &);
     // void pubMap();
+    nav_msgs::msg::Path convertPathToRosMsg(
+        const std::vector<std::shared_ptr<Node> > &);
     grid_map::GridMap map_;
 
    private:

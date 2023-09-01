@@ -53,11 +53,6 @@ std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
 
     open_list.push(start_node);
 
-    std::cout << "CRAZY DEBUG START " << std::endl;
-    std::cout << start_node->x << " | " << start_node->y << std::endl;
-    std::cout << target_node->x << " | " << target_node->y << std::endl;
-    std::cout << "END END END" << std::endl;
-
     auto algorithm_start_time = std::chrono::high_resolution_clock::now();
     while (!open_list.empty()) {
         auto algorithm_current_time = std::chrono::high_resolution_clock::now();
@@ -84,6 +79,8 @@ std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
                 path.push_back(path_current_node);
                 path_current_node = path_current_node->parent;
             }
+
+            std::reverse(path.begin(), path.end());
 
             return path;
         }
@@ -237,6 +234,20 @@ grid_map::Index HybridAstarPlanner::getIndexOfNode(const Node& node) {
     grid_map::Index node_index;
     map_.getIndex(node_position, node_index);
     return node_index;
+}
+
+nav_msgs::msg::Path HybridAstarPlanner::convertPathToRosMsg(
+    const std::vector<std::shared_ptr<Node> >& path) {
+    auto generated_path = nav_msgs::msg::Path();
+
+    // for (auto node : path) {
+    //     geometry_msgs::msg::PoseStamped path_pose;
+
+    //     path_pose.pose.position.x = node->x;
+    //     path_pose.pose.position.y = node->y;
+    // }
+
+    return generated_path;
 }
 
 }  // end of namespace planning

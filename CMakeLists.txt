@@ -26,6 +26,7 @@ find_package(visualization_msgs REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 include_directories(include)
+
 add_executable(test_plan
   test/test_plan.cpp
   src/hybrid_astar_planner.cpp
@@ -71,6 +72,22 @@ ament_target_dependencies(test_is_path_valid
 
 install(TARGETS
   test_is_path_valid
+  DESTINATION lib/${PROJECT_NAME})
+
+# ############################
+
+add_executable(test_kd_tree
+  test/test_kd_tree.cpp
+  src/kd_tree.cpp)
+
+ament_target_dependencies(test_kd_tree 
+  rclcpp 
+  grid_map_ros
+  grid_map_msgs
+  visualization_msgs)
+
+install(TARGETS
+  test_kd_tree
   DESTINATION lib/${PROJECT_NAME})
 
 # Mark other files for installation
