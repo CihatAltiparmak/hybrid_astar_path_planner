@@ -162,11 +162,6 @@ KDPoint KDTree::getNearestPoint(const KDPoint& referancePoint,
         }
     }
 
-    std::cout << "(jarbag) : "
-              << "(" << nearestPoint[0] << ", " << nearestPoint[1] << ")"
-              << " | " << euclidian_squared_dist(referancePoint, nearestPoint)
-              << std::endl;
-
     return nearestPoint;
 }
 

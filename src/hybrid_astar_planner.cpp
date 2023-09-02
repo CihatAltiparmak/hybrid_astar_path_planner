@@ -47,6 +47,11 @@ HybridAstarPlanner::HybridAstarPlanner(rclcpp::Node::SharedPtr& node) {
 
 std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
     std::shared_ptr<Node> start_node, std::shared_ptr<Node> target_node) {
+    if (!isInsideOfMap(*start_node)) {
+        std::cout << "PLAN FAIL: start node not inside map" << std::endl;
+        return {};
+    }
+
     std::vector<std::shared_ptr<Node> > nodes;
     std::priority_queue<std::shared_ptr<Node> > open_list;
     std::vector<bool> closed_list(map_.getSize()(0) * map_.getSize()(1), false);
@@ -90,7 +95,7 @@ std::vector<std::shared_ptr<Node> > HybridAstarPlanner::plan(
     }
 
     std::cout << "PLAN FAIL" << std::endl;
-    return nodes;
+    return {};
 }
 
 void HybridAstarPlanner::updateNeigbour(
@@ -236,16 +241,14 @@ grid_map::Index HybridAstarPlanner::getIndexOfNode(const Node& node) {
     return node_index;
 }
 
-nav_msgs::msg::Path HybridAstarPlanner::convertPathToRosMsg(
+std::vector<Vector2d> HybridAstarPlanner::convertPathToVector2dList(
     const std::vector<std::shared_ptr<Node> >& path) {
-    auto generated_path = nav_msgs::msg::Path();
+    std::vector<Vector2d> generated_path;
 
-    // for (auto node : path) {
-    //     geometry_msgs::msg::PoseStamped path_pose;
-
-    //     path_pose.pose.position.x = node->x;
-    //     path_pose.pose.position.y = node->y;
-    // }
+    for (auto node : path) {
+        Vector2d pointVect(node->x, node->y);
+        generated_path.push_back(pointVect);
+    }
 
     return generated_path;
 }

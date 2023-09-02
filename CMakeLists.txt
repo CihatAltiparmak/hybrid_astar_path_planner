@@ -21,22 +21,22 @@ find_package(rclcpp REQUIRED)
 find_package(grid_map_ros REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(planner_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(test_plan
   test/test_plan.cpp
   src/hybrid_astar_planner.cpp
-  src/path_smoother.cpp)
+  src/path_smoother.cpp
+  src/kd_tree.cpp)
 
 ament_target_dependencies(test_plan 
   rclcpp 
   grid_map_ros
   grid_map_msgs
-  visualization_msgs)
+  visualization_msgs
+  planner_msgs)
 
 install(TARGETS
   test_plan
@@ -46,13 +46,16 @@ install(TARGETS
 
 # add_executable(test_update_neigbour
 #   test/test_update_neigbour.cpp
-#   src/hybrid_astar_planner.cpp)
+#   src/hybrid_astar_planner.cpp
+#   src/path_smoother.cpp
+#   src/kd_tree.cpp)
 # 
 # ament_target_dependencies(test_update_neigbour 
 #   rclcpp 
 #   grid_map_ros
 #   grid_map_msgs
-#   visualization_msgs)
+#   visualization_msgs
+#   planner_msgs)
 # 
 # install(TARGETS
 #   test_update_neigbour
@@ -62,19 +65,22 @@ install(TARGETS
 
 add_executable(test_is_path_valid
   test/test_is_path_valid.cpp
-  src/hybrid_astar_planner.cpp)
+  src/hybrid_astar_planner.cpp
+  src/path_smoother.cpp
+  src/kd_tree.cpp)
 
 ament_target_dependencies(test_is_path_valid 
   rclcpp 
   grid_map_ros
   grid_map_msgs
-  visualization_msgs)
+  visualization_msgs
+  planner_msgs)
 
 install(TARGETS
   test_is_path_valid
   DESTINATION lib/${PROJECT_NAME})
 
-# ############################
+#############################
 
 add_executable(test_kd_tree
   test/test_kd_tree.cpp
@@ -88,6 +94,25 @@ ament_target_dependencies(test_kd_tree
 
 install(TARGETS
   test_kd_tree
+  DESTINATION lib/${PROJECT_NAME})
+
+############################
+
+add_executable(test_plan_smoothed
+  test/test_plan_smoothed.cpp
+  src/hybrid_astar_planner.cpp
+  src/path_smoother.cpp
+  src/kd_tree.cpp)
+
+ament_target_dependencies(test_plan_smoothed 
+  rclcpp 
+  grid_map_ros
+  grid_map_msgs
+  visualization_msgs
+  planner_msgs)
+
+install(TARGETS
+  test_plan_smoothed
   DESTINATION lib/${PROJECT_NAME})
 
 # Mark other files for installation

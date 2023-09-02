@@ -33,7 +33,7 @@ def generate_launch_description():
     # Declare node actions
     hybrid_astar_planner_node = Node(
         package='hybrid_astar_planner',
-        executable='test_plan',
+        executable='test_plan_smoothed',
         name='hybrid_astar_planner',
         output='screen'
     )

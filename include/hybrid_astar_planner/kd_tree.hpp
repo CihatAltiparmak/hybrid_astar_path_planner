@@ -39,6 +39,7 @@ class KDTree {
                             const int&);
 
    public:
+    KDTree() = default;
     KDTree(std::vector<KDPoint>&, const int&);
     std::shared_ptr<KDNode> build(std::vector<KDPoint>&, const int&, const int&,
                                   const int&) const;
