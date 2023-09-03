@@ -1,7 +1,7 @@
 #ifndef __VECTOR_HPP__
 #define __VECTOR_HPP__
 
-#include <planner_msgs/msg/point.h>
+#include <planner_msgs/msg/point.hpp>
 
 namespace planning {
 

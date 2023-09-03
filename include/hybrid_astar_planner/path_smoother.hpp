@@ -14,7 +14,8 @@ class PathSmoother {
     PathSmoother(const grid_map::GridMap&);
     std::vector<Vector2d> smoothPath(const std::vector<Vector2d>&);
     Vector2d obstacleTerm(const Vector2d&);
-    void smoothingTerm();
+    Vector2d smoothingTerm(const Vector2d&, const Vector2d&, const Vector2d&,
+                           const Vector2d&, const Vector2d&);
 
    private:
     grid_map::GridMap map_;

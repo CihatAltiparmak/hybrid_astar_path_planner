@@ -20,13 +20,24 @@ std::vector<Vector2d> PathSmoother::smoothPath(
     int iteration_number = 5000;
     double alpha = 0.0001;
     double Wobst = 0.2;
+    double Wsmoothness = 0.2;
 
     std::vector<Vector2d> new_path = path;
 
     for (int i = 0; i < iteration_number; i++) {
+        Vector2d correction(0.0, 0.0);
+
+        for (int i = 2; i < static_cast<int>(new_path.size()) - 2; i++) {
+            correction =
+                Wsmoothness * smoothingTerm(new_path[i - 2], new_path[i - 1],
+                                            new_path[i], new_path[i + 1],
+                                            new_path[i + 2]);
+            new_path[i] -= alpha * correction;
+        }
+
         for (int i = 1; i < static_cast<int>(new_path.size()) - 1; i++) {
-            Vector2d correction = obstacleTerm(new_path[i]);
-            new_path[i] -= alpha * Wobst * correction;
+            correction = Wobst * obstacleTerm(new_path[i]);
+            new_path[i] -= alpha * correction;
         }
     }
 
@@ -38,7 +49,7 @@ Vector2d PathSmoother::obstacleTerm(const Vector2d& pointVect) {
         Vector2d(kdTree_.getNearestPoint({pointVect[0], pointVect[1]}));
     Vector2d obstVector = pointVect - nearestObstVect;
     double dist = obstVector.norm2();
-    double distMax = 5;
+    double distMax = 3;
 
     if (dist < distMax) {
         return (2 * (dist - distMax) * obstVector) / dist;
@@ -47,6 +58,10 @@ Vector2d PathSmoother::obstacleTerm(const Vector2d& pointVect) {
     return Vector2d(0.0, 0.0);
 }
 
-void PathSmoother::smoothingTerm() {}
+Vector2d PathSmoother::smoothingTerm(const Vector2d& xim2, const Vector2d& xim1,
+                                     const Vector2d& xi, const Vector2d& xip1,
+                                     const Vector2d& xip2) {
+    return 2 * (xip2 - 4 * xip1 + 6 * xi - 4 * xim1 + xim2);
+}
 
 }  // end of namespace planning
