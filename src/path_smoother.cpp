@@ -1,14 +1,55 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 CihatAltiparmak
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include <hybrid_astar_planner/path_smoother.hpp>
 
 namespace planning {
 
-PathSmoother::PathSmoother(const grid_map::GridMap& map) : map_(map) {
+PathSmoother::PathSmoother(rclcpp::Node::SharedPtr& node) {
+    node->declare_parameter("weight_obstacle", 0.5);
+    node->get_parameter("weight_obstacle", Wobst_);
+
+    node->declare_parameter("weight_smoothness", 0.2);
+    node->get_parameter("weight_smoothness", Wsmoothness_);
+
+    node->declare_parameter("iteration_number", 5000);
+    node->get_parameter("iteration_number", iterationNumber_);
+
+    node->declare_parameter("alpha", 0.0001);
+    node->get_parameter("alpha", alpha_);
+
+    node->declare_parameter("dist_max", 3.0);
+    node->get_parameter("dist_max", distMax_);
+}
+
+void PathSmoother::doSettingsWithMap(const grid_map::GridMap& map) {
     std::vector<KDPoint> obstacles;
 
-    for (grid_map::GridMapIterator it(map_); !it.isPastEnd(); ++it) {
-        if (map_.at("obstacle", *it) > 0.0) {
+    for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) {
+        if (map.at("obstacle", *it) > 0.0) {
             grid_map::Position obstacle_pos;
-            map_.getPosition(*it, obstacle_pos);
+            map.getPosition(*it, obstacle_pos);
             obstacles.push_back({obstacle_pos.x(), obstacle_pos.y()});
         }
     }
@@ -17,27 +58,22 @@ PathSmoother::PathSmoother(const grid_map::GridMap& map) : map_(map) {
 
 std::vector<Vector2d> PathSmoother::smoothPath(
     const std::vector<Vector2d>& path) {
-    int iteration_number = 5000;
-    double alpha = 0.0001;
-    double Wobst = 0.2;
-    double Wsmoothness = 0.2;
-
     std::vector<Vector2d> new_path = path;
 
-    for (int i = 0; i < iteration_number; i++) {
+    for (int i = 0; i < iterationNumber_; i++) {
         Vector2d correction(0.0, 0.0);
 
         for (int i = 2; i < static_cast<int>(new_path.size()) - 2; i++) {
             correction =
-                Wsmoothness * smoothingTerm(new_path[i - 2], new_path[i - 1],
-                                            new_path[i], new_path[i + 1],
-                                            new_path[i + 2]);
-            new_path[i] -= alpha * correction;
+                Wsmoothness_ * smoothingTerm(new_path[i - 2], new_path[i - 1],
+                                             new_path[i], new_path[i + 1],
+                                             new_path[i + 2]);
+            new_path[i] -= alpha_ * correction;
         }
 
         for (int i = 1; i < static_cast<int>(new_path.size()) - 1; i++) {
-            correction = Wobst * obstacleTerm(new_path[i]);
-            new_path[i] -= alpha * correction;
+            correction = Wobst_ * obstacleTerm(new_path[i]);
+            new_path[i] -= alpha_ * correction;
         }
     }
 
@@ -49,10 +85,10 @@ Vector2d PathSmoother::obstacleTerm(const Vector2d& pointVect) {
         Vector2d(kdTree_.getNearestPoint({pointVect[0], pointVect[1]}));
     Vector2d obstVector = pointVect - nearestObstVect;
     double dist = obstVector.norm2();
-    double distMax = 3;
+    double distMax_ = 3;
 
-    if (dist < distMax) {
-        return (2 * (dist - distMax) * obstVector) / dist;
+    if (dist < distMax_) {
+        return (2 * (dist - distMax_) * obstVector) / dist;
     }
 
     return Vector2d(0.0, 0.0);

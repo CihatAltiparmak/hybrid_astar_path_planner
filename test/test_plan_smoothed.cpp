@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2023 CihatAltiparmak
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
@@ -9,6 +33,9 @@ planning::HybridAstarPlanner hybrid_astar;
 
 planning::Node start_node = planning::Node(-0.049 * 20, -0.049 * 20, 0.785398);
 planning::Node end_node = planning::Node(0.4 * 20.0, 0.4 * 20.0, 0.785398);
+
+rclcpp::Node::SharedPtr node;
+planning::PathSmoother smoother;
 
 visualization_msgs::msg::Marker unsmoothed_viz_msg;
 visualization_msgs::msg::Marker smoothed_viz_msg;
@@ -36,7 +63,7 @@ void do_plan() {
     unsmoothed_viz_msg.points.clear();
 
     hybrid_astar.map_ = create_map();
-    planning::PathSmoother smoother(hybrid_astar.map_);
+    smoother.doSettingsWithMap(hybrid_astar.map_);
 
     auto unsmoothed_path = hybrid_astar.convertPathToVector2dList(
         hybrid_astar.plan(std::make_shared<planning::Node>(start_node),
@@ -78,8 +105,7 @@ void goal_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    rclcpp::Node::SharedPtr node =
-        std::make_shared<rclcpp::Node>("hybrid_astar_node");
+    node = std::make_shared<rclcpp::Node>("hybrid_astar_node");
 
     auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
         "/astar_grid_map", rclcpp::QoS(1).transient_local());
@@ -101,6 +127,7 @@ int main(int argc, char** argv) {
             "/goal_pose", 10, goal_pose_callback);
 
     hybrid_astar = planning::HybridAstarPlanner(node);
+    smoother = planning::PathSmoother(node);
 
     unsmoothed_viz_msg.header.frame_id = "map";
     unsmoothed_viz_msg.ns = "test_update_neigbour";
