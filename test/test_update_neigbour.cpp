@@ -22,66 +22,79 @@
  * SOFTWARE.
  */
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
-#include <visualization_msgs/msg/marker.hpp>
+#include <memory>
+#include <planner_msgs/msg/path.hpp>
 
-grid_map::GridMap create_map() {
-    grid_map::GridMap map =
-        grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
-    map.setFrameId("map");
-    map.setGeometry(grid_map::Length(1.0, 1.0), 0.05,
-                    grid_map::Position(0.0, 0.0));
+#include "test_utils/utils.hpp"
 
-    for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) {
-        grid_map::Position pos;
-        map.getPosition(*it, pos);
-        map.at("x", *it) = pos.x();
-        map.at("y", *it) = pos.y();
-        map.at("z", *it) = 0.0;
-        map.at("obstacle", *it) = 0.0;
-    }
+class TestUpdateNeigbour : public rclcpp::Node {
+   public:
+    TestUpdateNeigbour();
+    void initialize();
+    void loop();
+    grid_map::GridMap create_map();
+    void doUpdateNeigbour();
+    void initialPoseCallback(
+        const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr);
 
-    grid_map::Index start(7, 7);
-    grid_map::Index end(8, 8);
+   private:
+    planning::Node start_node;
 
-    grid_map::Position pos_start;
-    map.getPosition(start, pos_start);
+    planning::HybridAstarPlanner hybrid_astar;
 
-    grid_map::Position pos_end;
-    map.getPosition(end, pos_end);
+    planner_msgs::msg::Path all_path_msg;
 
-    for (grid_map::LineIterator it(map, start, end); !it.isPastEnd(); ++it) {
-        grid_map::Position pos;
-        map.getPosition(*it, pos);
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::
+        SharedPtr initialPoseSub;
 
-        map.at("z", *it) = 10.0;
-        map.at("obstacle", *it) = 10.0;
-    }
+    rclcpp::Publisher<planner_msgs::msg::Path>::SharedPtr allPathPub;
+    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr mapPub;
+};
 
-    return map;
-}
+TestUpdateNeigbour::TestUpdateNeigbour() : Node("test_plan_smoothed_node") {}
 
-int main(int argc, char** argv) {
-    rclcpp::init(argc, argv);
-    auto hybrid_astar = planning::HybridAstarPlanner();
-    hybrid_astar.map = create_map();
+void TestUpdateNeigbour::initialize() {
+    start_node = planning::Node(-0.049 * 20, -0.049 * 20, 0.785398);
 
-    rclcpp::Node::SharedPtr node =
-        std::make_shared<rclcpp::Node>("hybrid_astar_node");
+    hybrid_astar = planning::HybridAstarPlanner(shared_from_this());
 
-    auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
+    doUpdateNeigbour();
+
+    mapPub = this->create_publisher<grid_map_msgs::msg::GridMap>(
         "/astar_grid_map", rclcpp::QoS(1).transient_local());
 
-    auto points_pub = node->create_publisher<visualization_msgs::msg::Marker>(
-        "/points", rclcpp::QoS(1).transient_local());
+    allPathPub = this->create_publisher<planner_msgs::msg::Path>(
+        "/all_path", rclcpp::QoS(1).transient_local());
 
-    visualization_msgs::msg::Marker viz_msg;
-    planning::Node start_node = planning::Node();
-    start_node.x = -0.049;
-    start_node.y = -0.049;
-    start_node.yaw = 0.785398;
+    initialPoseSub = this->create_subscription<
+        geometry_msgs::msg::PoseWithCovarianceStamped>(
+        "/initialpose", 10,
+        std::bind(&TestUpdateNeigbour::initialPoseCallback, this,
+                  std::placeholders::_1));
+}
+
+void TestUpdateNeigbour::loop() {
+    std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
+        grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
+
+    mapPub->publish(std::move(msg));
+    allPathPub->publish(all_path_msg);
+}
+
+void TestUpdateNeigbour::doUpdateNeigbour() {
+    std::cout << "YESSS DOING TO Update Neigbour" << std::endl;
+
+    hybrid_astar.map_ = create_map();
+
     int cell_number =
-        hybrid_astar.map.getSize()(0) * hybrid_astar.map.getSize()(1);
+        hybrid_astar.map_.getSize()(0) * hybrid_astar.map_.getSize()(1);
+
     std::vector<std::shared_ptr<planning::Node> > all_nodes;
     std::priority_queue<std::shared_ptr<planning::Node> > pq;
     std::vector<bool> visited(cell_number, false);
@@ -92,49 +105,56 @@ int main(int argc, char** argv) {
     for (int level = 0; level < 2; level++) {
         int node_size_limit = all_nodes.size();
         for (; level_ii < node_size_limit; level_ii++) {
-            auto node = all_nodes[level_ii];
-            hybrid_astar.updateNeigbour(std::make_shared<planning::Node>(node),
-                                        std::make_shared<planning::Node>(node),
-                                        all_nodes, pq, visited);
+            auto node_ptr = all_nodes[level_ii];
+            hybrid_astar.updateNeigbour(node_ptr, node_ptr, all_nodes, pq,
+                                        visited);
         }
     }
 
-    std::cout << "neigbours start" << std::endl;
-    for (auto node : all_nodes) {
-        geometry_msgs::msg::Point node_point;
-        node_point.x = node->x;
-        node_point.y = node->y;
-        node_point.z = 0.0;
-        viz_msg.points.push_back(node_point);
+    all_path_msg = hybrid_astar.convertPlanToRosMsg(all_nodes);
+}
 
-        grid_map::Index n_indx = hybrid_astar.getIndexOfNode(*node);
+void TestUpdateNeigbour::initialPoseCallback(
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    std::cout << "initial_pose sub received msg" << std::endl;
+    start_node.x = msg->pose.pose.position.x;
+    start_node.y = msg->pose.pose.position.y;
 
-        hybrid_astar.map.at("z", n_indx) = -2.0;
-        hybrid_astar.map.at("obstacle", n_indx) = -2.0;
-        std::cout << node->x << " | " << node->y << " | " << node->yaw
-                  << std::endl;
-    }
-    std::cout << "neigbours end: " << viz_msg.points.size() << std::endl;
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg->pose.pose.orientation, quat);
+    tf2::Matrix3x3 mat(quat);
+    double r, p, y;
+    mat.getRPY(r, p, y);
+    start_node.yaw = y;
 
-    viz_msg.header.frame_id = "map";
-    viz_msg.ns = "test_update_neigbour";
-    viz_msg.action = visualization_msgs::msg::Marker::ADD;
-    viz_msg.id = 1;
-    viz_msg.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-    viz_msg.scale.x = 0.005;
-    viz_msg.scale.y = 0.005;
-    viz_msg.scale.z = 0.005;
-    viz_msg.color.b = 1.0;
-    viz_msg.color.a = 1.0;
+    doUpdateNeigbour();
+}
+
+grid_map::GridMap TestUpdateNeigbour::create_map() {
+    grid_map::GridMap map =
+        grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
+    map.setFrameId("map");
+    // map.setGeometry(grid_map::Length(1.0, 1.0), 0.05,
+    //                 grid_map::Position(0.0, 0.0));
+
+    map.setGeometry(grid_map::Length(20.0, 20.0), 1.0,
+                    grid_map::Position(0.0, 0.0));
+
+    clearGridMap(map);
+    addObstaclesToGridMap(map);
+
+    return map;
+}
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+
+    auto node = std::make_shared<TestUpdateNeigbour>();
+    node->initialize();
 
     rclcpp::Rate rate(30.0);
     while (rclcpp::ok()) {
-        std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map);
-
-        map_pub->publish(std::move(msg));
-        points_pub->publish(viz_msg);
-
+        node->loop();
         rclcpp::spin_some(node->get_node_base_interface());
         rate.sleep();
     }

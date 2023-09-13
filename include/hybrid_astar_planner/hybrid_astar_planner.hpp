@@ -35,6 +35,7 @@
 #include <memory>
 #include <nav_msgs/msg/path.hpp>
 #include <planner_msgs/msg/path.hpp>
+#include <planner_msgs/msg/point.hpp>
 #include <queue>
 #include <rclcpp/rclcpp.hpp>
 
@@ -42,8 +43,8 @@ namespace planning {
 
 class HybridAstarPlanner {
    public:
-    HybridAstarPlanner();
-    HybridAstarPlanner(rclcpp::Node::SharedPtr &);
+    HybridAstarPlanner() = default;
+    HybridAstarPlanner(rclcpp::Node::SharedPtr);
     std::vector<std::shared_ptr<Node> > plan(std::shared_ptr<Node>,
                                              std::shared_ptr<Node>);
     void updateNeigbour(std::shared_ptr<Node>, std::shared_ptr<Node>,
@@ -61,6 +62,9 @@ class HybridAstarPlanner {
     grid_map::Position getPositionOfNode(const Node &);
     // void pubMap();
     std::vector<Vector2d> convertPathToVector2dList(
+        const std::vector<std::shared_ptr<Node> > &);
+
+    planner_msgs::msg::Path convertPlanToRosMsg(
         const std::vector<std::shared_ptr<Node> > &);
 
     grid_map::GridMap map_;

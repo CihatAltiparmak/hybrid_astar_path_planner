@@ -37,8 +37,8 @@ namespace planning {
 class PathSmoother {
    public:
     PathSmoother() = default;
-    PathSmoother(rclcpp::Node::SharedPtr&);
-    std::vector<Vector2d> smoothPath(const std::vector<Vector2d>&);
+    PathSmoother(rclcpp::Node::SharedPtr);
+    planner_msgs::msg::Path smoothPath(const std::vector<Vector2d>&);
     Vector2d obstacleTerm(const Vector2d&);
     Vector2d smoothingTerm(const Vector2d&, const Vector2d&, const Vector2d&,
                            const Vector2d&, const Vector2d&);

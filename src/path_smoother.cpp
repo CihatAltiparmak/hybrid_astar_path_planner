@@ -26,7 +26,7 @@
 
 namespace planning {
 
-PathSmoother::PathSmoother(rclcpp::Node::SharedPtr& node) {
+PathSmoother::PathSmoother(rclcpp::Node::SharedPtr node) {
     node->declare_parameter("weight_obstacle", 0.5);
     node->get_parameter("weight_obstacle", Wobst_);
 
@@ -56,7 +56,7 @@ void PathSmoother::doSettingsWithMap(const grid_map::GridMap& map) {
     kdTree_ = KDTree(obstacles, 2);
 }
 
-std::vector<Vector2d> PathSmoother::smoothPath(
+planner_msgs::msg::Path PathSmoother::smoothPath(
     const std::vector<Vector2d>& path) {
     std::vector<Vector2d> new_path = path;
 
@@ -77,7 +77,25 @@ std::vector<Vector2d> PathSmoother::smoothPath(
         }
     }
 
-    return new_path;
+    planner_msgs::msg::Path smoothed_path_msg;
+    smoothed_path_msg.header.frame_id = "map";
+    for (int i = 0; i < static_cast<int>(new_path.size()) - 1; i++) {
+        planner_msgs::msg::Point point;
+        point.x = new_path[i][0];
+        point.y = new_path[i][1];
+        point.yaw = std::atan2((new_path[i + 1][1] - new_path[i][1]),
+                               (new_path[i + 1][0] - new_path[i][0]));
+
+        smoothed_path_msg.points.push_back(point);
+    }
+
+    planner_msgs::msg::Point point;
+    point.x = new_path.back()[0];
+    point.y = new_path.back()[1];
+    point.yaw = 0.0;
+
+    smoothed_path_msg.points.push_back(point);
+    return smoothed_path_msg;
 }
 
 Vector2d PathSmoother::obstacleTerm(const Vector2d& pointVect) {

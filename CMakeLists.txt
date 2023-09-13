@@ -21,7 +21,9 @@ find_package(rclcpp REQUIRED)
 find_package(grid_map_ros REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(planner_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
 include_directories(include)
 
@@ -44,24 +46,24 @@ install(TARGETS
 
 ############################
 
-# add_executable(test_update_neigbour
-#   test/test_update_neigbour.cpp
-#   src/hybrid_astar_planner.cpp
-#   src/path_smoother.cpp
-#   src/kd_tree.cpp)
-# 
-# ament_target_dependencies(test_update_neigbour 
-#   rclcpp 
-#   grid_map_ros
-#   grid_map_msgs
-#   visualization_msgs
-#   planner_msgs)
-# 
-# install(TARGETS
-#   test_update_neigbour
-#   DESTINATION lib/${PROJECT_NAME})
-# 
-# ############################
+add_executable(test_update_neigbour
+  test/test_update_neigbour.cpp
+  src/hybrid_astar_planner.cpp
+  src/path_smoother.cpp
+  src/kd_tree.cpp)
+
+ament_target_dependencies(test_update_neigbour 
+  rclcpp 
+  grid_map_ros
+  grid_map_msgs
+  visualization_msgs
+  planner_msgs)
+
+install(TARGETS
+  test_update_neigbour
+  DESTINATION lib/${PROJECT_NAME})
+
+############################
 
 add_executable(test_is_path_valid
   test/test_is_path_valid.cpp
@@ -74,6 +76,7 @@ ament_target_dependencies(test_is_path_valid
   grid_map_ros
   grid_map_msgs
   visualization_msgs
+  nav_msgs
   planner_msgs)
 
 install(TARGETS
@@ -109,7 +112,8 @@ ament_target_dependencies(test_plan_smoothed
   grid_map_ros
   grid_map_msgs
   visualization_msgs
-  planner_msgs)
+  planner_msgs
+  tf2)
 
 install(TARGETS
   test_plan_smoothed

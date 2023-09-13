@@ -22,43 +22,110 @@
  * SOFTWARE.
  */
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <hybrid_astar_planner/hybrid_astar_planner.hpp>
-#include <visualization_msgs/msg/marker.hpp>
+#include <hybrid_astar_planner/utils/node.hpp>
+#include <nav_msgs/msg/path.hpp>
 
-auto hybrid_astar = planning::HybridAstarPlanner();
+#include "test_utils/utils.hpp"
 
-planning::Node start_node = planning::Node(4.0, 5);
-planning::Node end_node = planning::Node(-4.0, -4.0);
+class TestIsPathValid : public rclcpp::Node {
+   public:
+    TestIsPathValid();
+    void initialize();
+    void loop();
+    grid_map::GridMap create_map();
+    void doTraverse();
+    void ray_casting(planning::Node, planning::Node,
+                     std::vector<std::pair<double, double>>&);
+    void initialPoseCallback(
+        const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr);
+    void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr);
 
-visualization_msgs::msg::Marker viz_msg;
+   private:
+    planning::Node start_node;
+    planning::Node end_node;
+    grid_map::GridMap map_;
+    nav_msgs::msg::Path line_viz_msg_;
 
-void clearMap(grid_map::GridMap& map) {
-    for (grid_map::GridMapIterator it(map); !it.isPastEnd(); ++it) {
-        grid_map::Position pos;
-        map.getPosition(*it, pos);
-        map.at("z", *it) = 0.0;
-        map.at("obstacle", *it) = 0.0;
-    }
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::
+        SharedPtr initialPoseSub;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr
+        goalPoseSub;
+
+    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr mapPub;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr lineVizPub_;
+};
+
+TestIsPathValid::TestIsPathValid() : Node("test_plan_smoothed_node") {}
+
+void TestIsPathValid::initialize() {
+    start_node = planning::Node(4.0, 5);
+    end_node = planning::Node(-4.0, -4.0);
+
+    doTraverse();
+
+    mapPub = this->create_publisher<grid_map_msgs::msg::GridMap>(
+        "/astar_grid_map", rclcpp::QoS(1).transient_local());
+
+    lineVizPub_ = this->create_publisher<nav_msgs::msg::Path>(
+        "/path_line", rclcpp::QoS(1).transient_local());
+
+    initialPoseSub = this->create_subscription<
+        geometry_msgs::msg::PoseWithCovarianceStamped>(
+        "/initialpose", 10,
+        std::bind(&TestIsPathValid::initialPoseCallback, this,
+                  std::placeholders::_1));
+
+    goalPoseSub = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+        "/goal_pose", 10,
+        std::bind(&TestIsPathValid::goalPoseCallback, this,
+                  std::placeholders::_1));
 }
 
-grid_map::GridMap create_map() {
-    grid_map::GridMap map =
-        grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
-    map.setFrameId("map");
-    map.setGeometry(grid_map::Length(20.0, 20.0), 2.0,
-                    grid_map::Position(0.0, 0.0));
+void TestIsPathValid::loop() {
+    std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
+        grid_map::GridMapRosConverter::toMessage(map_);
 
-    clearMap(map);
+    mapPub->publish(std::move(msg));
+    lineVizPub_->publish(line_viz_msg_);
+}
 
-    return map;
+void TestIsPathValid::doTraverse() {
+    std::cout << "YESSS DOING IT" << std::endl;
+
+    std::vector<std::pair<double, double>> all_nodes;
+    map_ = create_map();
+    ray_casting(start_node, end_node, all_nodes);
+
+    for (auto node : all_nodes) {
+        grid_map::Index n_indx;
+        map_.getIndex(grid_map::Position(node.first, node.second), n_indx);
+
+        map_.at("z", n_indx) = -2.0;
+        map_.at("obstacle", n_indx) = -2.0;
+    }
+
+    all_nodes = {{start_node.x, start_node.y}, {end_node.x, end_node.y}};
+    line_viz_msg_.header.frame_id = "map";
+    line_viz_msg_.poses.clear();
+    for (auto node : all_nodes) {
+        geometry_msgs::msg::PoseStamped node_pose;
+        node_pose.pose.position.x = node.first;
+        node_pose.pose.position.y = node.second;
+        line_viz_msg_.poses.push_back(node_pose);
+    }
 }
 
 // https://gamedev.stackexchange.com/a/182143
 // http://www.cse.yorku.ca/~amana/research/grid.pdf
-void ray_casting(planning::Node start_node, planning::Node end_node,
-                 std::vector<std::pair<double, double>>& all_nodes) {
+void TestIsPathValid::ray_casting(
+    planning::Node start_node, planning::Node end_node,
+    std::vector<std::pair<double, double>>& all_nodes) {
     double resolution = 2.0;
     double x0 = start_node.x / resolution;
     double y0 = start_node.y / resolution;
@@ -111,107 +178,62 @@ void ray_casting(planning::Node start_node, planning::Node end_node,
     }
 }
 
-void traverse_grid() {
-    std::vector<std::pair<double, double>> all_nodes;
-    viz_msg.points.clear();
-    clearMap(hybrid_astar.map_);
-    ray_casting(start_node, end_node, all_nodes);
-
-    std::cout << "neigbours start" << std::endl;
-    for (auto node : all_nodes) {
-        // geometry_msgs::msg::Point node_point;
-        // node_point.x = node.first;
-        // node_point.y = node.second;
-        // node_point.z = 0.0;
-        // viz_msg.points.push_back(node_point);
-
-        grid_map::Index n_indx;
-        hybrid_astar.map_.getIndex(grid_map::Position(node.first, node.second),
-                                   n_indx);
-
-        hybrid_astar.map_.at("z", n_indx) = -2.0;
-        hybrid_astar.map_.at("obstacle", n_indx) = -2.0;
-    }
-
-    all_nodes = {{start_node.x, start_node.y}, {end_node.x, end_node.y}};
-    for (auto node : all_nodes) {
-        geometry_msgs::msg::Point node_point;
-        node_point.x = node.first;
-        node_point.y = node.second;
-        node_point.z = 0.0;
-        viz_msg.points.push_back(node_point);
-
-        // grid_map::Index n_indx;
-        // hybrid_astar.map.getIndex(grid_map::Position(node.first,
-        // node.second), n_indx);
-        //
-        // hybrid_astar.map.at("z", n_indx) = 2.0;
-        // hybrid_astar.map.at("obstacle", n_indx) = 2.0;
-    }
-
-    std::cout << "neigbours end: " << viz_msg.points.size() << std::endl;
-}
-
-void initial_pose_callback(
+void TestIsPathValid::initialPoseCallback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     std::cout << "initial_pose sub received msg" << std::endl;
     start_node.x = msg->pose.pose.position.x;
     start_node.y = msg->pose.pose.position.y;
 
-    traverse_grid();
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg->pose.pose.orientation, quat);
+    tf2::Matrix3x3 mat(quat);
+    double r, p, y;
+    mat.getRPY(r, p, y);
+    start_node.yaw = y;
+
+    doTraverse();
 }
 
-void goal_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+void TestIsPathValid::goalPoseCallback(
+    const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
     std::cout << "goal_pose sub received msg" << std::endl;
     end_node.x = msg->pose.position.x;
     end_node.y = msg->pose.position.y;
 
-    traverse_grid();
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg->pose.orientation, quat);
+    tf2::Matrix3x3 mat(quat);
+    double r, p, y;
+    mat.getRPY(r, p, y);
+    end_node.yaw = y;
+
+    doTraverse();
+}
+
+grid_map::GridMap TestIsPathValid::create_map() {
+    grid_map::GridMap map =
+        grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
+    map.setFrameId("map");
+    // map.setGeometry(grid_map::Length(1.0, 1.0), 0.05,
+    //                 grid_map::Position(0.0, 0.0));
+
+    map.setGeometry(grid_map::Length(20.0, 20.0), 2.0,
+                    grid_map::Position(0.0, 0.0));
+
+    clearGridMap(map);
+
+    return map;
 }
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    hybrid_astar.map_ = create_map();
-
-    rclcpp::Node::SharedPtr node =
-        std::make_shared<rclcpp::Node>("hybrid_astar_node");
-
-    auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
-        "/astar_grid_map", rclcpp::QoS(1).transient_local());
-
-    auto points_pub = node->create_publisher<visualization_msgs::msg::Marker>(
-        "/points", rclcpp::QoS(1).transient_local());
-
-    auto initial_pose_sub = node->create_subscription<
-        geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10,
-                                                       initial_pose_callback);
-
-    auto goal_pose_sub =
-        node->create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/goal_pose", 10, goal_pose_callback);
-
-    viz_msg.header.frame_id = "map";
-    viz_msg.ns = "test_update_neigbour";
-    viz_msg.action = visualization_msgs::msg::Marker::ADD;
-    viz_msg.id = 1;
-    viz_msg.type = visualization_msgs::msg::Marker::LINE_STRIP;  // SPHERE_LIST;
-    viz_msg.scale.x = 0.1;
-    viz_msg.scale.y = 0.1;
-    viz_msg.scale.z = 0.1;
-    viz_msg.color.b = 1.0;
-    viz_msg.color.a = 1.0;
-
-    traverse_grid();
+    auto node = std::make_shared<TestIsPathValid>();
+    node->initialize();
 
     rclcpp::Rate rate(30.0);
     while (rclcpp::ok()) {
-        std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
-
-        map_pub->publish(std::move(msg));
-        points_pub->publish(viz_msg);
-
+        node->loop();
         rclcpp::spin_some(node->get_node_base_interface());
         rate.sleep();
     }

@@ -27,27 +27,15 @@
 
 namespace planning {
 
-HybridAstarPlanner::HybridAstarPlanner() {
-    wheelbase_ = 1.0;  // 0.05;  // 2.0;
-    dt_ = 0.1;
-    velocityInputs_ = {10};  //{0.5};
-    // steeringInputs = {-0.34, 0.0, 0.34};
-    steeringInputs_ = {-0.34, -0.17, 0.0, 0.17, 0.34};
-    // steeringInputs_ = {-0.78, 0.0, 0.78};
-
-    timeLimit_ = 1000;
-    steeringCost_ = 0.1;
-    headingChangeCost_ = 0.1;
-    obstacleCost_ = 0.1;
-}
-
-HybridAstarPlanner::HybridAstarPlanner(rclcpp::Node::SharedPtr& node) {
+HybridAstarPlanner::HybridAstarPlanner(rclcpp::Node::SharedPtr node) {
     node->declare_parameter("wheelbase", 1.0);
     node->get_parameter("wheelbase", wheelbase_);
 
     node->declare_parameter("dt", 0.1);
     node->get_parameter("dt", dt_);
 
+    // node->declare_parameter("velocity_inputs", std::vector<double>({10.0,
+    // -10.0}));
     node->declare_parameter("velocity_inputs", std::vector<double>({10.0}));
     node->get_parameter("velocity_inputs", velocityInputs_);
 
@@ -275,6 +263,23 @@ std::vector<Vector2d> HybridAstarPlanner::convertPathToVector2dList(
     }
 
     return generated_path;
+}
+
+planner_msgs::msg::Path HybridAstarPlanner::convertPlanToRosMsg(
+    const std::vector<std::shared_ptr<Node> >& path) {
+    planner_msgs::msg::Path path_msg;
+    path_msg.header.frame_id = "map";
+
+    for (auto node : path) {
+        planner_msgs::msg::Point point;
+        point.x = node->x;
+        point.y = node->y;
+        point.yaw = node->yaw;
+
+        path_msg.points.push_back(point);
+    }
+
+    return path_msg;
 }
 
 }  // end of namespace planning

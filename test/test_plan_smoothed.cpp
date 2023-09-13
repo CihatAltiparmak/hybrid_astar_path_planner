@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <hybrid_astar_planner/hybrid_astar_planner.hpp>
@@ -29,18 +33,126 @@
 
 #include "test_utils/utils.hpp"
 
-planning::HybridAstarPlanner hybrid_astar;
+class TestPlanSmoothed : public rclcpp::Node {
+   public:
+    TestPlanSmoothed();
+    void initialize();
+    void loop();
+    grid_map::GridMap create_map();
+    void doPlan();
+    void initialPoseCallback(
+        const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr);
+    void goalPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr);
 
-planning::Node start_node = planning::Node(-0.049 * 20, -0.049 * 20, 0.785398);
-planning::Node end_node = planning::Node(0.4 * 20.0, 0.4 * 20.0, 0.785398);
+   private:
+    planning::Node start_node;
+    planning::Node end_node;
 
-rclcpp::Node::SharedPtr node;
-planning::PathSmoother smoother;
+    planning::HybridAstarPlanner hybrid_astar;
+    planning::PathSmoother smoother;
 
-visualization_msgs::msg::Marker unsmoothed_viz_msg;
-visualization_msgs::msg::Marker smoothed_viz_msg;
+    planner_msgs::msg::Path smoothed_path_msg;
+    planner_msgs::msg::Path unsmoothed_path_msg;
 
-grid_map::GridMap create_map() {
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::
+        SharedPtr initialPoseSub;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr
+        goalPoseSub;
+
+    rclcpp::Publisher<planner_msgs::msg::Path>::SharedPtr smoothedPathPub;
+    rclcpp::Publisher<planner_msgs::msg::Path>::SharedPtr unsmoothedPathPub;
+    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr mapPub;
+};
+
+TestPlanSmoothed::TestPlanSmoothed() : Node("test_plan_smoothed_node") {}
+
+void TestPlanSmoothed::initialize() {
+    start_node = planning::Node(-0.049 * 20, -0.049 * 20, 0.785398);
+    end_node = planning::Node(0.4 * 20.0, 0.4 * 20.0, 0.785398);
+
+    hybrid_astar = planning::HybridAstarPlanner(shared_from_this());
+    smoother = planning::PathSmoother(shared_from_this());
+
+    doPlan();
+
+    mapPub = this->create_publisher<grid_map_msgs::msg::GridMap>(
+        "/astar_grid_map", rclcpp::QoS(1).transient_local());
+
+    unsmoothedPathPub = this->create_publisher<planner_msgs::msg::Path>(
+        "/unsmoothed_path", rclcpp::QoS(1).transient_local());
+
+    smoothedPathPub = this->create_publisher<planner_msgs::msg::Path>(
+        "/smoothed_path", rclcpp::QoS(1).transient_local());
+
+    initialPoseSub = this->create_subscription<
+        geometry_msgs::msg::PoseWithCovarianceStamped>(
+        "/initialpose", 10,
+        std::bind(&TestPlanSmoothed::initialPoseCallback, this,
+                  std::placeholders::_1));
+
+    goalPoseSub = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+        "/goal_pose", 10,
+        std::bind(&TestPlanSmoothed::goalPoseCallback, this,
+                  std::placeholders::_1));
+}
+
+void TestPlanSmoothed::loop() {
+    std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
+        grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
+
+    mapPub->publish(std::move(msg));
+    unsmoothedPathPub->publish(unsmoothed_path_msg);
+    smoothedPathPub->publish(smoothed_path_msg);
+}
+
+void TestPlanSmoothed::doPlan() {
+    std::cout << "YESSS DOING IT" << std::endl;
+
+    hybrid_astar.map_ = create_map();
+
+    auto path_plan =
+        hybrid_astar.plan(std::make_shared<planning::Node>(start_node),
+                          std::make_shared<planning::Node>(end_node));
+
+    unsmoothed_path_msg = hybrid_astar.convertPlanToRosMsg(path_plan);
+    smoother.doSettingsWithMap(hybrid_astar.map_);
+    smoothed_path_msg =
+        smoother.smoothPath(hybrid_astar.convertPathToVector2dList(path_plan));
+}
+
+void TestPlanSmoothed::initialPoseCallback(
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    std::cout << "initial_pose sub received msg" << std::endl;
+    start_node.x = msg->pose.pose.position.x;
+    start_node.y = msg->pose.pose.position.y;
+
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg->pose.pose.orientation, quat);
+    tf2::Matrix3x3 mat(quat);
+    double r, p, y;
+    mat.getRPY(r, p, y);
+    start_node.yaw = y;
+
+    doPlan();
+}
+
+void TestPlanSmoothed::goalPoseCallback(
+    const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+    std::cout << "goal_pose sub received msg" << std::endl;
+    end_node.x = msg->pose.position.x;
+    end_node.y = msg->pose.position.y;
+
+    tf2::Quaternion quat;
+    tf2::fromMsg(msg->pose.orientation, quat);
+    tf2::Matrix3x3 mat(quat);
+    double r, p, y;
+    mat.getRPY(r, p, y);
+    end_node.yaw = y;
+
+    doPlan();
+}
+
+grid_map::GridMap TestPlanSmoothed::create_map() {
     grid_map::GridMap map =
         grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
     map.setFrameId("map");
@@ -56,112 +168,15 @@ grid_map::GridMap create_map() {
     return map;
 }
 
-void do_plan() {
-    std::cout << "YESSS DOING IT" << std::endl;
-    std::vector<std::shared_ptr<planning::Node> > all_nodes;
-    smoothed_viz_msg.points.clear();
-    unsmoothed_viz_msg.points.clear();
-
-    hybrid_astar.map_ = create_map();
-    smoother.doSettingsWithMap(hybrid_astar.map_);
-
-    auto unsmoothed_path = hybrid_astar.convertPathToVector2dList(
-        hybrid_astar.plan(std::make_shared<planning::Node>(start_node),
-                          std::make_shared<planning::Node>(end_node)));
-
-    auto smoothed_path = smoother.smoothPath(unsmoothed_path);
-
-    for (int i = 0; i < (int)unsmoothed_path.size(); i++) {
-        geometry_msgs::msg::Point node_point;
-        node_point.x = unsmoothed_path[i][0];
-        node_point.y = unsmoothed_path[i][1];
-        node_point.z = 0.0;
-        unsmoothed_viz_msg.points.push_back(node_point);
-
-        node_point.x = smoothed_path[i][0];
-        node_point.y = smoothed_path[i][1];
-        node_point.z = 0.0;
-        smoothed_viz_msg.points.push_back(node_point);
-    }
-}
-
-void initial_pose_callback(
-    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    std::cout << "initial_pose sub received msg" << std::endl;
-    start_node.x = msg->pose.pose.position.x;
-    start_node.y = msg->pose.pose.position.y;
-
-    do_plan();
-}
-
-void goal_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-    std::cout << "goal_pose sub received msg" << std::endl;
-    end_node.x = msg->pose.position.x;
-    end_node.y = msg->pose.position.y;
-
-    do_plan();
-}
-
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
 
-    node = std::make_shared<rclcpp::Node>("hybrid_astar_node");
-
-    auto map_pub = node->create_publisher<grid_map_msgs::msg::GridMap>(
-        "/astar_grid_map", rclcpp::QoS(1).transient_local());
-
-    auto unsmoothed_path_pub =
-        node->create_publisher<visualization_msgs::msg::Marker>(
-            "/unsmoothed_path", rclcpp::QoS(1).transient_local());
-
-    auto smoothed_path_pub =
-        node->create_publisher<visualization_msgs::msg::Marker>(
-            "/smoothed_path", rclcpp::QoS(1).transient_local());
-
-    auto initial_pose_sub = node->create_subscription<
-        geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10,
-                                                       initial_pose_callback);
-
-    auto goal_pose_sub =
-        node->create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/goal_pose", 10, goal_pose_callback);
-
-    hybrid_astar = planning::HybridAstarPlanner(node);
-    smoother = planning::PathSmoother(node);
-
-    unsmoothed_viz_msg.header.frame_id = "map";
-    unsmoothed_viz_msg.ns = "test_update_neigbour";
-    unsmoothed_viz_msg.action = visualization_msgs::msg::Marker::ADD;
-    unsmoothed_viz_msg.id = 1;
-    unsmoothed_viz_msg.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-    unsmoothed_viz_msg.scale.x = 0.005 * 20;
-    unsmoothed_viz_msg.scale.y = 0.005 * 20;
-    unsmoothed_viz_msg.scale.z = 0.005 * 20;
-    unsmoothed_viz_msg.color.b = 1.0;
-    unsmoothed_viz_msg.color.a = 1.0;
-
-    smoothed_viz_msg.header.frame_id = "map";
-    smoothed_viz_msg.ns = "el_planno_americano";
-    smoothed_viz_msg.action = visualization_msgs::msg::Marker::ADD;
-    smoothed_viz_msg.id = 2;
-    smoothed_viz_msg.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-    smoothed_viz_msg.scale.x = 0.005 * 20;
-    smoothed_viz_msg.scale.y = 0.005 * 20;
-    smoothed_viz_msg.scale.z = 0.005 * 20;
-    smoothed_viz_msg.color.b = 0.0;
-    smoothed_viz_msg.color.a = 1.0;
-
-    do_plan();
+    auto node = std::make_shared<TestPlanSmoothed>();
+    node->initialize();
 
     rclcpp::Rate rate(30.0);
     while (rclcpp::ok()) {
-        std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-            grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
-
-        map_pub->publish(std::move(msg));
-        unsmoothed_path_pub->publish(unsmoothed_viz_msg);
-        smoothed_path_pub->publish(smoothed_viz_msg);
-
+        node->loop();
         rclcpp::spin_some(node->get_node_base_interface());
         rate.sleep();
     }
