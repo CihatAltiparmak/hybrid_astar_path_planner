@@ -24,8 +24,10 @@ find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(planner_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(ompl REQUIRED)
 
 include_directories(include)
+include_directories(${OMPL_INCLUDE_DIRS})
 
 add_executable(test_plan
   test/test_plan.cpp
@@ -38,7 +40,10 @@ ament_target_dependencies(test_plan
   grid_map_ros
   grid_map_msgs
   visualization_msgs
-  planner_msgs)
+  planner_msgs
+  ompl)
+
+target_link_libraries(test_plan ${OMPL_LIBRARIES})
 
 install(TARGETS
   test_plan
@@ -57,7 +62,10 @@ ament_target_dependencies(test_update_neigbour
   grid_map_ros
   grid_map_msgs
   visualization_msgs
-  planner_msgs)
+  planner_msgs
+  ompl)
+
+target_link_libraries(test_update_neigbour ${OMPL_LIBRARIES})
 
 install(TARGETS
   test_update_neigbour
@@ -77,7 +85,10 @@ ament_target_dependencies(test_is_path_valid
   grid_map_msgs
   visualization_msgs
   nav_msgs
-  planner_msgs)
+  planner_msgs
+  ompl)
+
+target_link_libraries(test_is_path_valid ${OMPL_LIBRARIES})
 
 install(TARGETS
   test_is_path_valid
@@ -93,7 +104,10 @@ ament_target_dependencies(test_kd_tree
   rclcpp 
   grid_map_ros
   grid_map_msgs
-  visualization_msgs)
+  visualization_msgs
+  ompl)
+
+target_link_libraries(test_kd_tree ${OMPL_LIBRARIES})
 
 install(TARGETS
   test_kd_tree
@@ -113,7 +127,10 @@ ament_target_dependencies(test_plan_smoothed
   grid_map_msgs
   visualization_msgs
   planner_msgs
-  tf2)
+  tf2
+  ompl)
+
+target_link_libraries(test_plan_smoothed ${OMPL_LIBRARIES})
 
 install(TARGETS
   test_plan_smoothed

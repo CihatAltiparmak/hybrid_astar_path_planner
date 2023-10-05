@@ -22,7 +22,7 @@ def generate_launch_description():
         'visualization_config',
         default_value=os.path.join(
             hybrid_astar_planner_dir, 'config', 'hybrid_astar_planner_demo.yaml'),
-        description='Full path to the Gridmap visualization config file to use')
+        description='Full path to the hybrid_astar_planner config file to use')
 
     declare_rviz_config_file_cmd = DeclareLaunchArgument(
         'rviz_config',

@@ -32,51 +32,60 @@
 #include <memory>
 #include <vector>
 
-namespace planning {
+namespace planning
+{
 
 using KDPoint = std::vector<double>;
 
-struct KDNode {
-    KDPoint point;
-    std::shared_ptr<KDNode> rightChildKDNodePtr;
-    std::shared_ptr<KDNode> leftChildKDNodePtr;
+struct KDNode
+{
+  KDPoint point;
+  std::shared_ptr<KDNode> rightChildKDNodePtr;
+  std::shared_ptr<KDNode> leftChildKDNodePtr;
 
-    KDNode(const KDPoint& point,
-           const std::shared_ptr<KDNode>& leftChildKDNodePtr,
-           const std::shared_ptr<KDNode>& rightChildKDNodePtr) {
-        this->point = point;
-        this->rightChildKDNodePtr = rightChildKDNodePtr;
-        this->leftChildKDNodePtr = leftChildKDNodePtr;
-    }
+  KDNode(
+    const KDPoint & point,
+    const std::shared_ptr<KDNode> & leftChildKDNodePtr,
+    const std::shared_ptr<KDNode> & rightChildKDNodePtr)
+  {
+    this->point = point;
+    this->rightChildKDNodePtr = rightChildKDNodePtr;
+    this->leftChildKDNodePtr = leftChildKDNodePtr;
+  }
 
-    KDNode() : KDNode({}, nullptr, nullptr) {}
+  KDNode()
+  : KDNode({}, nullptr, nullptr) {}
 };
 
-class KDTree {
-   private:
-    std::shared_ptr<KDNode> rootPtr_;
-    int dimension_;
-    void insertPoint(const KDPoint&, std::shared_ptr<KDNode>&, const int&);
-    double getNearestDistance(const KDPoint&, const std::shared_ptr<KDNode>&,
-                              const int&);
-    KDPoint getNearestPoint(const KDPoint&, const std::shared_ptr<KDNode>&,
-                            const int&);
+class KDTree
+{
+private:
+  std::shared_ptr<KDNode> rootPtr_;
+  int dimension_;
+  void insertPoint(const KDPoint &, std::shared_ptr<KDNode> &, const int &);
+  double getNearestDistance(
+    const KDPoint &, const std::shared_ptr<KDNode> &,
+    const int &);
+  KDPoint getNearestPoint(
+    const KDPoint &, const std::shared_ptr<KDNode> &,
+    const int &);
 
-   public:
-    KDTree() = default;
-    KDTree(std::vector<KDPoint>&, const int&);
-    std::shared_ptr<KDNode> build(std::vector<KDPoint>&, const int&, const int&,
-                                  const int&) const;
-    void insertPoint(KDPoint);
-    void deletePoint(KDPoint);
-    double getNearestDistance(const KDPoint&);
-    KDPoint getNearestPoint(const KDPoint&);
+public:
+  KDTree() = default;
+  KDTree(std::vector<KDPoint> &, const int &);
+  std::shared_ptr<KDNode> build(
+    std::vector<KDPoint> &, const int &, const int &,
+    const int &) const;
+  void insertPoint(KDPoint);
+  void deletePoint(KDPoint);
+  double getNearestDistance(const KDPoint &);
+  KDPoint getNearestPoint(const KDPoint &);
 
-    double euclidian_squared_dist(const KDPoint&, const KDPoint&);
+  double euclidian_squared_dist(const KDPoint &, const KDPoint &);
 
-    void print_node(const std::shared_ptr<KDNode>&);
-    void print();
-    void print(std::shared_ptr<KDNode>, const int&);
+  void print_node(const std::shared_ptr<KDNode> &);
+  void print();
+  void print(std::shared_ptr<KDNode>, const int &);
 };
 
 }  // end of namespace planning

@@ -32,26 +32,29 @@
 #include <planner_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-namespace planning {
+namespace planning
+{
 
-class PathSmoother {
-   public:
-    PathSmoother() = default;
-    PathSmoother(rclcpp::Node::SharedPtr);
-    planner_msgs::msg::Path smoothPath(const std::vector<Vector2d>&);
-    Vector2d obstacleTerm(const Vector2d&);
-    Vector2d smoothingTerm(const Vector2d&, const Vector2d&, const Vector2d&,
-                           const Vector2d&, const Vector2d&);
-    void doSettingsWithMap(const grid_map::GridMap&);
+class PathSmoother
+{
+public:
+  PathSmoother() = default;
+  PathSmoother(rclcpp::Node::SharedPtr);
+  planner_msgs::msg::Path smoothPath(const std::vector<Vector2d> &);
+  Vector2d obstacleTerm(const Vector2d &);
+  Vector2d smoothingTerm(
+    const Vector2d &, const Vector2d &, const Vector2d &,
+    const Vector2d &, const Vector2d &);
+  void doSettingsWithMap(const grid_map::GridMap &);
 
-   private:
-    int iterationNumber_;
-    double alpha_;
-    double Wobst_;
-    double Wsmoothness_;
-    double distMax_;
-    grid_map::GridMap map_;
-    KDTree kdTree_;
+private:
+  int iterationNumber_;
+  double alpha_;
+  double Wobst_;
+  double Wsmoothness_;
+  double distMax_;
+  grid_map::GridMap map_;
+  KDTree kdTree_;
 };
 
 }  // end of namespace planning

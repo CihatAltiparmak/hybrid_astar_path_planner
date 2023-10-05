@@ -39,46 +39,63 @@
 #include <queue>
 #include <rclcpp/rclcpp.hpp>
 
-namespace planning {
+#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
+#include <ompl/base/spaces/SE2StateSpace.h>
+#include <ompl/base/State.h>
 
-class HybridAstarPlanner {
-   public:
-    HybridAstarPlanner() = default;
-    HybridAstarPlanner(rclcpp::Node::SharedPtr);
-    std::vector<std::shared_ptr<Node> > plan(std::shared_ptr<Node>,
-                                             std::shared_ptr<Node>);
-    void updateNeigbour(std::shared_ptr<Node>, std::shared_ptr<Node>,
-                        std::vector<std::shared_ptr<Node> > &,
-                        std::priority_queue<std::shared_ptr<Node> > &,
-                        std::vector<bool> &);
-    void addToClosedList(const Node &, std::vector<bool> &);
-    double heruisticCost(const Node &, const Node &);
-    // virtual bool isCollision() = 0;
-    bool isPathValid(const Node &, const Node &);
-    bool isInsideOfMap(const Node &);
-    bool isClosed(const Node &, std::vector<bool> &);
-    bool isInsideOfSameCell(const Node &, const Node &);
-    grid_map::Index getIndexOfNode(const Node &);
-    grid_map::Position getPositionOfNode(const Node &);
-    // void pubMap();
-    std::vector<Vector2d> convertPathToVector2dList(
-        const std::vector<std::shared_ptr<Node> > &);
+typedef ompl::base::SE2StateSpace::StateType State;
 
-    planner_msgs::msg::Path convertPlanToRosMsg(
-        const std::vector<std::shared_ptr<Node> > &);
+namespace planning
+{
 
-    grid_map::GridMap map_;
+// https://stackoverflow.com/a/14369745
 
-   private:
-    std::vector<double> steeringInputs_;
-    std::vector<double> velocityInputs_;
-    double wheelbase_;
-    double dt_;
-    int timeLimit_;
+class HybridAstarPlanner
+{
+public:
+  HybridAstarPlanner() = default;
+  HybridAstarPlanner(rclcpp::Node::SharedPtr);
+  std::vector<std::shared_ptr<Node>> plan(
+    std::shared_ptr<Node>,
+    std::shared_ptr<Node>);
+  void updateNeigbour(
+    std::shared_ptr<Node>, std::shared_ptr<Node>,
+    std::vector<std::shared_ptr<Node>> &,
+    std::priority_queue<std::shared_ptr<Node>> &,
+    std::vector<std::shared_ptr<Node>> &);
+  void addToClosedList(const std::shared_ptr<Node> &, std::vector<std::shared_ptr<Node>> &);
+  double heruisticCost(const std::shared_ptr<Node> &, const std::shared_ptr<Node> &);
+  void updateExistingNodeInCell(std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>> &);
+  bool isPathValid(const std::shared_ptr<Node> &, const std::shared_ptr<Node> &);
+  bool isInsideOfMap(const std::shared_ptr<Node> &);
+  bool isClosed(const std::shared_ptr<Node> &, std::vector<std::shared_ptr<Node>> &);
+  bool isGoalReached(const std::shared_ptr<Node> &, const std::shared_ptr<Node> &);
+  grid_map::Index getIndexOfNode(const std::shared_ptr<Node> &);
+  grid_map::Position getPositionOfNode(const std::shared_ptr<Node> &);
+  // void pubMap();
+  std::vector<Vector2d> convertPathToVector2dList(
+    const std::vector<std::shared_ptr<Node>> &);
 
-    double steeringCost_;
-    double headingChangeCost_;
-    double obstacleCost_;
+  planner_msgs::msg::Path convertPlanToRosMsg(
+    const std::vector<std::shared_ptr<Node>> &);
+
+  grid_map::GridMap map_;
+
+private:
+  std::vector<double> steeringInputs_;
+  std::vector<double> directionInputs_;
+  double wheelbase_;
+  int timeLimit_;
+  int maxIterationNumber_;
+  double goalTolerance_;
+  double turningRadius_;
+
+  double steeringCost_;
+  double headingChangeCost_;
+  double obstacleCost_;
+
+  rclcpp::Node::SharedPtr node_;
 };
 
 }  // end of namespace planning
