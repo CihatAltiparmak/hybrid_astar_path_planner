@@ -79,11 +79,11 @@ std::vector<std::shared_ptr<Node>> HybridAstarPlanner::plan(
 
   std::vector<std::shared_ptr<Node>> nodes;
   std::priority_queue<std::shared_ptr<Node>> open_list;
-  std::vector<std::shared_ptr<Node>> closed_list(map_.getSize()(0) * map_.getSize()(1), nullptr);
+  std::vector<std::shared_ptr<Node>> cell_table(map_.getSize()(0) * map_.getSize()(1), nullptr);
 
   open_list.push(start_node_ptr);
   std::shared_ptr<Node> closest_node_ptr = start_node_ptr;
-  updateExistingNodeInCell(start_node_ptr, closed_list);
+  updateExistingNodeInCell(start_node_ptr, cell_table);
 
   RCLCPP_DEBUG(this->node_->get_logger(), "PLAN START");
 
@@ -105,7 +105,7 @@ std::vector<std::shared_ptr<Node>> HybridAstarPlanner::plan(
       break;
     }
 
-    if (isClosed(node_ptr, closed_list)) {
+    if (isClosed(node_ptr, cell_table)) {
       continue;
     }
 
@@ -114,8 +114,8 @@ std::vector<std::shared_ptr<Node>> HybridAstarPlanner::plan(
     }
 
     // nodes.push_back(node_ptr);
-    addToClosedList(node_ptr, closed_list);
-    updateNeigbour(node_ptr, target_node_ptr, nodes, open_list, closed_list);
+    addToClosedList(node_ptr, cell_table);
+    updateNeigbour(node_ptr, target_node_ptr, nodes, open_list, cell_table);
   }
 
   std::shared_ptr<Node> path_current_node = closest_node_ptr;
@@ -136,7 +136,7 @@ void HybridAstarPlanner::updateNeigbour(
   std::shared_ptr<Node> node_ptr, std::shared_ptr<Node> target_node_ptr,
   std::vector<std::shared_ptr<Node>> & nodes,
   std::priority_queue<std::shared_ptr<Node>> & open_list,
-  std::vector<std::shared_ptr<Node>> & closed_list)
+  std::vector<std::shared_ptr<Node>> & cell_table)
 {
   for (const double & steering : steeringInputs_) {
     for (const double & direction : directionInputs_) {
@@ -156,25 +156,25 @@ void HybridAstarPlanner::updateNeigbour(
       new_node_ptr->parent = node_ptr;
       open_list.push(new_node_ptr);
 
-      updateExistingNodeInCell(new_node_ptr, closed_list);
+      updateExistingNodeInCell(new_node_ptr, cell_table);
     }
   }
 }
 
 void HybridAstarPlanner::updateExistingNodeInCell(
   std::shared_ptr<Node> new_node_ptr,
-  std::vector<std::shared_ptr<Node>> & closed_list)
+  std::vector<std::shared_ptr<Node>> & cell_table)
 {
   grid_map::Index node_index = getIndexOfNode(new_node_ptr);
   int index = node_index.y() + node_index.x() * map_.getSize().x();
 
-  if (closed_list[index] == nullptr) {
-    closed_list[index] = new_node_ptr;
+  if (cell_table[index] == nullptr) {
+    cell_table[index] = new_node_ptr;
     return;
   }
 
-  if (new_node_ptr->f_cost < closed_list[index]->f_cost) {
-    closed_list[index] = new_node_ptr;
+  if (new_node_ptr->f_cost < cell_table[index]->f_cost) {
+    cell_table[index] = new_node_ptr;
   }
 }
 
@@ -195,12 +195,12 @@ double HybridAstarPlanner::heruisticCost(
 
 void HybridAstarPlanner::addToClosedList(
   const std::shared_ptr<Node> & node_ptr,
-  std::vector<std::shared_ptr<Node>> & closed_list)
+  std::vector<std::shared_ptr<Node>> & cell_table)
 {
   grid_map::Index node_index = getIndexOfNode(node_ptr);
   int index = node_index.y() + node_index.x() * map_.getSize().x();
 
-  closed_list[index] = nullptr;
+  cell_table[index] = nullptr;
 }
 
 // https://gamedev.stackexchange.com/a/182143
@@ -276,12 +276,12 @@ bool HybridAstarPlanner::isInsideOfMap(const std::shared_ptr<Node> & node_ptr)
 // TODO @CihatAltiparmak : not implemented correctly. fix it
 bool HybridAstarPlanner::isClosed(
   const std::shared_ptr<Node> & node_ptr,
-  std::vector<std::shared_ptr<Node>> & closed_list)
+  std::vector<std::shared_ptr<Node>> & cell_table)
 {
   grid_map::Index node_index = getIndexOfNode(node_ptr);
   int index = node_index.y() + node_index.x() * map_.getSize().x();
 
-  return node_ptr != closed_list[index];
+  return node_ptr != cell_table[index];
 }
 
 bool HybridAstarPlanner::isGoalReached(

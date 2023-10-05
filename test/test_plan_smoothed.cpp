@@ -167,15 +167,13 @@ grid_map::GridMap TestPlanSmoothed::create_map()
   grid_map::GridMap map =
     grid_map::GridMap({"x", "y", "z", "obstacle", "closed"});
   map.setFrameId("map");
-  // map.setGeometry(grid_map::Length(1.0, 1.0), 0.05,
-  //                 grid_map::Position(0.0, 0.0));
 
   map.setGeometry(
     grid_map::Length(80.0, 80.0), 1.0 /*1.0*/,
     grid_map::Position(0.0, 0.0));
 
   clearGridMap(map);
-  // addObstaclesToGridMap(map);
+  addObstaclesToGridMap(map);
 
   return map;
 }
