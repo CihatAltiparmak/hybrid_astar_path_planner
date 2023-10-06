@@ -60,55 +60,47 @@ void PathSmoother::doSettingsWithMap(const grid_map::GridMap & map)
 }
 
 planner_msgs::msg::Path PathSmoother::smoothPath(
-  const std::vector<Vector2d> & path)
+  const planner_msgs::msg::Path & path_msg)
 {
 
-  // if the path is empty, no need to smooth path
-  if (path.empty()) {
-    auto msg = planner_msgs::msg::Path();
-    msg.header.frame_id = "map";
-    return msg;
-  }
+  planner_msgs::msg::Path smoothed_path_msg = path_msg;
 
-  std::vector<Vector2d> new_path = path;
+  std::vector<Vector2d> path;
+  path.reserve(path_msg.points.size());
+
+  for (auto & point_msg : path_msg.points) {
+    path.push_back(Vector2d(point_msg.x, point_msg.y));
+  }
 
   for (int i = 0; i < iterationNumber_; i++) {
     Vector2d correction(0.0, 0.0);
 
-    for (int i = 2; i < static_cast<int>(new_path.size()) - 2; i++) {
+    for (int i = 2; i < static_cast<int>(path.size()) - 2; i++) {
       correction =
         Wsmoothness_ * smoothingTerm(
-        new_path[i - 2], new_path[i - 1],
-        new_path[i], new_path[i + 1],
-        new_path[i + 2]);
-      new_path[i] -= alpha_ * correction;
+        path[i - 2], path[i - 1],
+        path[i], path[i + 1],
+        path[i + 2]);
+      path[i] -= alpha_ * correction;
     }
 
-    for (int i = 1; i < static_cast<int>(new_path.size()) - 1; i++) {
-      correction = Wobst_ * obstacleTerm(new_path[i]);
-      new_path[i] -= alpha_ * correction;
+    for (int i = 1; i < static_cast<int>(path.size()) - 1; i++) {
+      correction = Wobst_ * obstacleTerm(path[i]);
+      path[i] -= alpha_ * correction;
     }
   }
 
-  planner_msgs::msg::Path smoothed_path_msg;
-  smoothed_path_msg.header.frame_id = "map";
-  for (int i = 0; i < static_cast<int>(new_path.size()) - 1; i++) {
-    planner_msgs::msg::Point point;
-    point.x = new_path[i][0];
-    point.y = new_path[i][1];
-    point.yaw = std::atan2(
-      (new_path[i + 1][1] - new_path[i][1]),
-      (new_path[i + 1][0] - new_path[i][0]));
-
-    smoothed_path_msg.points.push_back(point);
+  for (int i = 0; i < static_cast<int>(path.size()); i++) {
+    smoothed_path_msg.points[i].x = path[i][0];
+    smoothed_path_msg.points[i].y = path[i][1];
   }
 
-  planner_msgs::msg::Point point;
-  point.x = new_path.back()[0];
-  point.y = new_path.back()[1];
-  point.yaw = 0.0;
+  for (int i = 0; i < static_cast<int>(path.size()) - 1; i++) {
+    smoothed_path_msg.points[i].yaw = std::atan2(
+      (path[i + 1][1] - path[i][1]),
+      (path[i + 1][0] - path[i][0]));
+  }
 
-  smoothed_path_msg.points.push_back(point);
   return smoothed_path_msg;
 }
 

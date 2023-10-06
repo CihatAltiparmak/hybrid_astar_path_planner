@@ -56,7 +56,7 @@ class HybridAstarPlanner
 public:
   HybridAstarPlanner() = default;
   HybridAstarPlanner(rclcpp::Node::SharedPtr);
-  std::vector<std::shared_ptr<Node>> plan(
+  planner_msgs::msg::Path plan(
     std::shared_ptr<Node>,
     std::shared_ptr<Node>);
   void updateNeigbour(
@@ -73,14 +73,9 @@ public:
   bool isGoalReached(const std::shared_ptr<Node> &, const std::shared_ptr<Node> &);
   grid_map::Index getIndexOfNode(const std::shared_ptr<Node> &);
   grid_map::Position getPositionOfNode(const std::shared_ptr<Node> &);
-  // void pubMap();
-  std::vector<Vector2d> convertPathToVector2dList(
-    const std::vector<std::shared_ptr<Node>> &);
 
-  planner_msgs::msg::Path convertPlanToRosMsg(
-    const std::vector<std::shared_ptr<Node>> &);
-
-  grid_map::GridMap map_;
+  grid_map::GridMap getMap();
+  void setMap(grid_map::GridMap);
 
 private:
   std::vector<double> steeringInputs_;
@@ -96,6 +91,7 @@ private:
   double obstacleCost_;
 
   rclcpp::Node::SharedPtr node_;
+  grid_map::GridMap map_;
 };
 
 }  // end of namespace planning

@@ -40,7 +40,7 @@ class PathSmoother
 public:
   PathSmoother() = default;
   PathSmoother(rclcpp::Node::SharedPtr);
-  planner_msgs::msg::Path smoothPath(const std::vector<Vector2d> &);
+  planner_msgs::msg::Path smoothPath(const planner_msgs::msg::Path &);
   Vector2d obstacleTerm(const Vector2d &);
   Vector2d smoothingTerm(
     const Vector2d &, const Vector2d &, const Vector2d &,

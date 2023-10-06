@@ -94,7 +94,7 @@ void TestPlan::initialize()
 void TestPlan::loop()
 {
   std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-    grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
+    grid_map::GridMapRosConverter::toMessage(hybrid_astar.getMap());
 
   mapPub->publish(std::move(msg));
   unsmoothedPathPub->publish(unsmoothed_path_msg);
@@ -104,14 +104,12 @@ void TestPlan::doPlan()
 {
   std::cout << "YESSS DOING IT" << std::endl;
 
-  hybrid_astar.map_ = create_map();
+  hybrid_astar.setMap(create_map());
 
-  auto path_plan =
+  unsmoothed_path_msg =
     hybrid_astar.plan(
     std::make_shared<planning::Node>(start_node),
     std::make_shared<planning::Node>(end_node));
-
-  unsmoothed_path_msg = hybrid_astar.convertPlanToRosMsg(path_plan);
 }
 
 void TestPlan::initialPoseCallback(

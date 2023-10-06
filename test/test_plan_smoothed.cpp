@@ -104,7 +104,7 @@ void TestPlanSmoothed::initialize()
 void TestPlanSmoothed::loop()
 {
   std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-    grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
+    grid_map::GridMapRosConverter::toMessage(hybrid_astar.getMap());
 
   mapPub->publish(std::move(msg));
   unsmoothedPathPub->publish(unsmoothed_path_msg);
@@ -115,17 +115,16 @@ void TestPlanSmoothed::doPlan()
 {
   std::cout << "YESSS DOING IT" << std::endl;
 
-  hybrid_astar.map_ = create_map();
+  hybrid_astar.setMap(create_map());
 
-  auto path_plan =
+  unsmoothed_path_msg =
     hybrid_astar.plan(
     std::make_shared<planning::Node>(start_node),
     std::make_shared<planning::Node>(end_node));
 
-  unsmoothed_path_msg = hybrid_astar.convertPlanToRosMsg(path_plan);
-  smoother.doSettingsWithMap(hybrid_astar.map_);
+  smoother.doSettingsWithMap(hybrid_astar.getMap());
   smoothed_path_msg =
-    smoother.smoothPath(hybrid_astar.convertPathToVector2dList(path_plan));
+    smoother.smoothPath(unsmoothed_path_msg);
 }
 
 void TestPlanSmoothed::initialPoseCallback(

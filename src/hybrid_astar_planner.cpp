@@ -66,12 +66,15 @@ HybridAstarPlanner::HybridAstarPlanner(rclcpp::Node::SharedPtr node)
   turningRadius_ = wheelbase_ / std::tan(0.52);
 }
 
-std::vector<std::shared_ptr<Node>> HybridAstarPlanner::plan(
+planner_msgs::msg::Path HybridAstarPlanner::plan(
   std::shared_ptr<Node> start_node_ptr, std::shared_ptr<Node> target_node_ptr)
 {
+  planner_msgs::msg::Path planned_path_msg;
+  planned_path_msg.header.frame_id = "map";
+
   if (!isInsideOfMap(start_node_ptr)) {
     RCLCPP_ERROR(this->node_->get_logger(), "PLAN FAIL: start node not inside map");
-    return {};
+    return planned_path_msg;
   }
 
   start_node_ptr->h_cost = heruisticCost(start_node_ptr, target_node_ptr);
@@ -119,17 +122,25 @@ std::vector<std::shared_ptr<Node>> HybridAstarPlanner::plan(
   }
 
   std::shared_ptr<Node> path_current_node = closest_node_ptr;
-  std::vector<std::shared_ptr<Node>> path;
+  // std::vector<std::shared_ptr<Node>> path;
   while (path_current_node != nullptr) {
-    path.push_back(path_current_node);
+    planner_msgs::msg::Point point_msg;
+    point_msg.x = path_current_node->x;
+    point_msg.y = path_current_node->y;
+    point_msg.yaw = path_current_node->yaw;
+
+    planned_path_msg.points.push_back(point_msg);
+
     path_current_node = path_current_node->parent;
   }
-  std::reverse(path.begin(), path.end());
+  std::reverse(planned_path_msg.points.begin(), planned_path_msg.points.end());
 
-  RCLCPP_DEBUG(this->node_->get_logger(), "Hybrid Path Size : %d", static_cast<int>(path.size()));
+  RCLCPP_DEBUG(
+    this->node_->get_logger(), "Hybrid Path Size : %d",
+    static_cast<int>(planned_path_msg.points.size()));
   RCLCPP_DEBUG(this->node_->get_logger(), "Closest Node Distance : %f", closest_node_ptr->h_cost);
 
-  return path;
+  return planned_path_msg;
 }
 
 void HybridAstarPlanner::updateNeigbour(
@@ -311,35 +322,14 @@ grid_map::Index HybridAstarPlanner::getIndexOfNode(const std::shared_ptr<Node> &
   return node_index;
 }
 
-std::vector<Vector2d> HybridAstarPlanner::convertPathToVector2dList(
-  const std::vector<std::shared_ptr<Node>> & path)
+grid_map::GridMap HybridAstarPlanner::getMap()
 {
-  std::vector<Vector2d> generated_path;
-
-  for (auto node : path) {
-    Vector2d pointVect(node->x, node->y);
-    generated_path.push_back(pointVect);
-  }
-
-  return generated_path;
+  return this->map_;
 }
 
-planner_msgs::msg::Path HybridAstarPlanner::convertPlanToRosMsg(
-  const std::vector<std::shared_ptr<Node>> & path)
+void HybridAstarPlanner::setMap(grid_map::GridMap map)
 {
-  planner_msgs::msg::Path path_msg;
-  path_msg.header.frame_id = "map";
-
-  for (auto node : path) {
-    planner_msgs::msg::Point point;
-    point.x = node->x;
-    point.y = node->y;
-    point.yaw = node->yaw;
-
-    path_msg.points.push_back(point);
-  }
-
-  return path_msg;
+  map_ = map;
 }
 
 }  // end of namespace planning

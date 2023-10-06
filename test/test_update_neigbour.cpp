@@ -86,7 +86,7 @@ void TestUpdateNeigbour::initialize()
 void TestUpdateNeigbour::loop()
 {
   std::unique_ptr<grid_map_msgs::msg::GridMap> msg =
-    grid_map::GridMapRosConverter::toMessage(hybrid_astar.map_);
+    grid_map::GridMapRosConverter::toMessage(hybrid_astar.getMap());
 
   mapPub->publish(std::move(msg));
   allPathPub->publish(all_path_msg);
@@ -96,10 +96,10 @@ void TestUpdateNeigbour::doUpdateNeigbour()
 {
   std::cout << "YESSS DOING TO Update Neigbour" << std::endl;
 
-  hybrid_astar.map_ = create_map();
+  hybrid_astar.setMap(create_map());
 
   int cell_number =
-    hybrid_astar.map_.getSize()(0) * hybrid_astar.map_.getSize()(1);
+    hybrid_astar.getMap().getSize()(0) * hybrid_astar.getMap().getSize()(1);
 
   std::vector<std::shared_ptr<planning::Node>> all_nodes;
   std::priority_queue<std::shared_ptr<planning::Node>> pq;
@@ -118,7 +118,15 @@ void TestUpdateNeigbour::doUpdateNeigbour()
     }
   }
 
-  all_path_msg = hybrid_astar.convertPlanToRosMsg(all_nodes);
+  all_path_msg.points.clear();
+  for (auto node : all_nodes) {
+    planner_msgs::msg::Point point_msg;
+    point_msg.x = node->x;
+    point_msg.y = node->y;
+    point_msg.yaw = node->yaw;
+
+    all_path_msg.points.push_back(point_msg);
+  }
 }
 
 void TestUpdateNeigbour::initialPoseCallback(
